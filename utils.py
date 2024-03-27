@@ -6,8 +6,8 @@ class ReplayBuffer(object):
         self.max_size = max_size
         self.ind = 0
 
-    def add(self, state, next_state, action, reward, done):
-        data = [state, next_state, action, reward, done]
+    def add(self, state, terminated, truncated, reward, done):
+        data = [state, reward, terminated, truncated]
 
         # if there is still space in storage, add data
         if len(self.storage) < self.max_size:
@@ -23,15 +23,15 @@ class ReplayBuffer(object):
     def sample(self, batch_size):
         # randomly sample batch size number of past events
         indices = np.random.randint(0, self.max_size, size=batch_size)
-        states, next_states, actions, rewards, dones = [], [], [], [], []
+        states, rewards, terminateds, truncateds = [], [], [], [], []
         for i in indices:
             self.storage[i, :]
-            s, ns, a, r, d = self.storage[i, :]
+            s, r, trunc, term = self.storage[i, :]
             states.append(np.array(s, copy=False))
-            next_states.append(np.array(ns, copy=False))
-            actions.append(np.array(a, copy=False))
             rewards.append(r)
-            dones.append(d)
+            terminateds.append(np.array(term, copy=False))
+            truncateds.append(np.array(trunc, copy=False))
+
         
-        return np.array(states), np.array(next_states), np.array(actions), np.array(rewards), np.array(dones)
+        return np.array(states), np.array(rewards), np.array(terminateds), np.array(truncateds)
 
