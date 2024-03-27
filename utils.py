@@ -1,12 +1,12 @@
 import numpy as np
 
 class ReplayBuffer(object):
-    def __init__(self, max_size):
+    def __init__(self, max_size=1e4):
         self.storage = []
         self.max_size = max_size
         self.ind = 0
 
-    def add(self, state, terminated, truncated, reward, done):
+    def add(self, state, terminated, truncated, reward):
         data = [state, reward, terminated, truncated]
 
         # if there is still space in storage, add data
