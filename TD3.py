@@ -42,12 +42,61 @@ class TD3(object):
         state = torch.FloatTensor(state.reshape(1, -1)).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
     
-    def train(self, replay_buffer, batch_size=256):
-        # NOTE: No need for for loop. We can call train multiple times.
-        self.total_it += 1
-        state, next_state , action, reward, done = replay_buffer.sample(batch_size)
-        state = torch.FloatTensor(state).to(device)
-        next_state = torch.FloatTensor(next_state).to(device)
-        action = torch.FloatTensor(action).to(device)
-        done = torch.FloatTensor(1 - done).to(device)
+    def train(self, iterations, replay_buffer, batch_size=256):
+        for i in range(iterations):
+            self.total_it += 1
+            
+            s, ns, ac, r, terminateds, truncateds = replay_buffer.sample(batch_size)
+            state = torch.FloatTensor(s).to(device)
+            next_state = torch.FloatTensor(ns).to(device)
+            action = torch.FloatTensor(ac).to(device)
+            reward = torch.FloatTensor(r).to(device)
+            not_done = torch.FloatTensor(1 - terminateds).to(device)
+            
+            with torch.no_grad():
+			    # For next action,  consider the policy and add noise
+                noise = (
+                    torch.randn_like(action) * self.policy_noise
+                    ).clamp(-self.noise_clip, self.noise_clip)
+                
+                next_action = (
+				    self.actor_target(next_state) + noise
+			    ).clamp(-self.max_action, self.max_action)
+
+			    # Compute the target Q value
+                target_Q1, target_Q2 = self.critic_target(next_state, next_action)
+                min_target = torch.min(target_Q1, target_Q2)
+                target_Q = reward + (not_done * self.discount * min_target)
+
+            # Get current Q estimates
+            curr_Q1, curr_Q2 = self.critic(state, action)
+            
+            # Calculate loss for crtic 
+            mse_loss_1 = nn.MSELoss()
+            mse_loss_2 = nn.MSELoss()
+            loss_for_critic =  mse_loss_1(curr_Q1, target_Q) + mse_loss_2(curr_Q2, target_Q)
+            
+            # Optimization for the critic 
+            self.critic_optimizer.zero_grad()
+            loss_for_critic.backward()
+            self.critic_optimizer.step()
+            
+            # update the policy
+            if i % self.policy_freq == 0:
+                loss_for_actor = -self.critic.Q2(state, self.actor(state)).mean()
+                
+                # Optimize the actor 
+                self.actor_optimizer.zero_grad()
+                loss_for_actor.backward()
+                self.actor_optimizer.step()
+                
+                # Update the frozen target models
+                for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
+                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                
+                for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
+                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+
+                
+      
         
