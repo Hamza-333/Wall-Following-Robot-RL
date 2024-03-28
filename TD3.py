@@ -49,5 +49,6 @@ class TD3(object):
         state = torch.FloatTensor(state).to(device)
         next_state = torch.FloatTensor(next_state).to(device)
         action = torch.FloatTensor(action).to(device)
-        done = torch.FloatTensor(1 - done).to(device)
+        reward = torch.FloatTensor(reward).to(device)
+        notdone = torch.FloatTensor(1 - done).to(device)
         

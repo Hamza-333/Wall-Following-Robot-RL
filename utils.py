@@ -22,7 +22,7 @@ class ReplayBuffer(object):
 
     def sample(self, batch_size):
         # randomly sample batch size number of past events
-        indices = np.random.randint(0, len(self.storage), size=batch_size)
+        indices = np.random.randint(0, self.max_size , size=batch_size)
         states, next_states, actions, rewards, dones = [], [], [], [], []
         for i in indices:
             self.storage[i, :]
