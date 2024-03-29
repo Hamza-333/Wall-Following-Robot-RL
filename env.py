@@ -542,10 +542,12 @@ class CarRacing(gym.Env, EzPickle):
 
         if self.render_mode == "human":
             self.render()
-        return self.step(None)[0], {}
+        # return self.step(None)[0], {}
+        return self.step(None)[0]
 
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
+
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
@@ -566,6 +568,7 @@ class CarRacing(gym.Env, EzPickle):
         self.t += 1.0 / FPS
 
         self.state = self._render("state_pixels")
+
 
         step_reward = 0
         terminated = False
@@ -589,7 +592,8 @@ class CarRacing(gym.Env, EzPickle):
 
         if self.render_mode == "human":
             self.render()
-        return self.state, step_reward, terminated, truncated, {}
+
+        return self.state, step_reward, terminated, truncated
 
     def render(self):
         if self.render_mode is None:

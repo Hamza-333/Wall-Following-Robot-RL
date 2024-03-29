@@ -27,7 +27,7 @@ class Critic(nn.module):
         # Q1
         self.q1 = Q_function(state_dim, action_dim, q1_l1_dim, q1_l2_dim)
         # Q2
-        self.q1 = Q_function(state_dim, action_dim, q2_l1_dim, q2_l2_dim)
+        self.q2 = Q_function(state_dim, action_dim, q2_l1_dim, q2_l2_dim)
     
     def forward(self, x, a):
         x1 = self.q1(x, a)
