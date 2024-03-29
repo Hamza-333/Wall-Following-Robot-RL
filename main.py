@@ -16,7 +16,7 @@ def evaluate_policy(policy, num_episodes=10):
         terminated, turncated = False, False
         while not terminated or not truncated:
             action = policy.select_action(np.array(next_state))
-            state, action, reward, next_state, terminated, truncated = env.step(action)
+            next_state, reward, terminated, truncated = env.step(action)
             total_reward += reward
 
     avg_reward = total_reward / num_episodes
@@ -59,12 +59,12 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
                 policy.save(file, directory="./")
 
-        # reset env after each episode
-        state = env.reset()
-        terminated, truncated = False, False
-        episode_reward = 0
-        episode_timesteps = 0
-        episode_num += 1 
+            # reset env after each episode
+            state = env.reset()
+            terminated, truncated = False, False
+            episode_reward = 0
+            episode_timesteps = 0
+            episode_num += 1 
 
         # take random actions for first number of timesteps to collect data form env
         if time < start_time:
@@ -79,7 +79,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
         # execute action and retreive observations
             
-        state, action, reward, next_state, terminated, truncated = env.step(action)
+        next_state, reward, terminated, truncated = env.step(action)
         episode_reward += reward
 
         # add experience to the replay_buffer
@@ -102,6 +102,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     plt.xlabel = "Evaluation number"
     plt.ylabel = "Average reward"
     plt.show()
+
 if __name__ == "__main__":
     env = gym.make("CarRacing-v2", continuous=True)
     seed = 0
@@ -119,5 +120,8 @@ if __name__ == "__main__":
     eval_freq = 2000
     batch_size = 100
     # time to start using policy, before this take random actions
-    start_time = 1000
+    start_time = 10000
+    max_time = 100000
 
+    action_noise = 0.1
+    run_train(policy, env, replay_buffer, max_time, batch_size, start_time, action_noise)
