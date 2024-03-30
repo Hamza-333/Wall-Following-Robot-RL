@@ -1,5 +1,5 @@
-import Actor 
-import Critic
+from Actor import Actor 
+from Critic import Critic
 import numpy as np
 import torch
 import torch.nn as nn

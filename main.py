@@ -41,7 +41,8 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     time_since_eval = 0
     evals = []
 
-    file = ""
+    path = "./weights"
+
     while time < max_time:
         # considering both terminated and truncated as end of episode
         if terminated or truncated:
@@ -50,6 +51,10 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 # print out stats for the episode
                 print("Total Timesteps: %d Episode Num: %d Episode Timesteps: %d Reward: %f  -----  Episode Time: %d sec") % \
 					(time, episode_num, episode_timesteps, episode_reward, int(time.time() - t0))
+                
+                # save policy with current stats 
+                policy.save("Episode_%d" % (episode_num), directory=path)
+                
                 # train policy
                 policy.train(replay_buffer, episode_timesteps, batch_size)
             if time_since_eval >= eval_freq:
@@ -57,10 +62,10 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 avg_reward = evaluate_policy(policy)
                 evals.append(avg_reward)
 
-                policy.save(file, directory="./")
+                policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
 
             # reset env after each episode
-            state = env.reset()
+            state = env.reset(seed = seed)
             terminated, truncated = False, False
             episode_reward = 0
             episode_timesteps = 0
@@ -90,7 +95,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
     avg_reward = evaluate_policy(policy)
     evals.append(avg_reward)
-    policy.save(file, directory="./")
+    policy.save("Final_weights", directory="./")
 
     # plot episode rewards
     plt.plot([i for i in range(len(episode_rewards))], episode_rewards)
@@ -105,8 +110,9 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
 if __name__ == "__main__":
     env = gym.make("CarRacing-v2", continuous=True)
+   
     seed = 0
-    env.seed(seed)
+
     torch.manual_seed(seed)
     np.random.seed(seed)
 
@@ -124,4 +130,4 @@ if __name__ == "__main__":
     max_time = 100000
 
     action_noise = 0.1
-    run_train(policy, env, replay_buffer, max_time, batch_size, start_time, action_noise)
+    run_train(policy, env, replay_buffer, max_time, batch_size, start_time, action_noise, seed)

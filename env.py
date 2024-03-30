@@ -1,6 +1,7 @@
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
+from math import atan2, cos, sin
 from typing import Optional, Union
 
 import numpy as np
@@ -255,16 +256,17 @@ class CarRacing(gym.Env, EzPickle):
         #   or normalised however this is not possible here so ignore
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-1, 0, 0]).astype(np.float32),
-                np.array([+1, +1, +1]).astype(np.float32),
+                np.array([-1]).astype(np.float32),
+                np.array([+1]).astype(np.float32),
             )  # steer, gas, brake
         else:
             self.action_space = spaces.Discrete(5)
             # do nothing, left, right, gas, brake
         # observation looks to be an image
         self.observation_space = spaces.Box(
-            low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
-        )
+                np.array([-math.pi, -WINDOW_W]).astype(np.float32),
+                np.array([math.pi, WINDOW_W]).astype(np.float32),
+            ) 
 
         self.render_mode = render_mode
 
@@ -551,8 +553,8 @@ class CarRacing(gym.Env, EzPickle):
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
-                self.car.gas(action[1])
-                self.car.brake(action[2])
+                #self.car.gas(action[1])
+                #self.car.brake(action[2])
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
@@ -560,21 +562,21 @@ class CarRacing(gym.Env, EzPickle):
                         f"The supported action_space is `{self.action_space}`"
                     )
                 self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
-                self.car.gas(0.2 * (action == 3))
-                self.car.brake(0.8 * (action == 4))
+                #self.car.gas(0.2 * (action == 3))
+                #self.car.brake(0.8 * (action == 4))
 
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
 
-        self.state = self._render("state_pixels")
-
+        # State variable has (error_heading vector, cte)
+        self.state = self.get_cross_track_error(self.car, self.track)[0:2]
 
         step_reward = 0
         terminated = False
         truncated = False
         if action is not None:  # First step without action, called from reset()
-            self.reward -= self.cross_track_error()
+            self.reward -= self.get_cross_track_error(self.car, self.track)[1]**2
             # We actually don't want to count fuel spent, we want car to be faster.
             # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
             self.car.fuel_spent = 0.0
@@ -586,9 +588,13 @@ class CarRacing(gym.Env, EzPickle):
                 # but like a timeout
                 truncated = True
             x, y = self.car.hull.position
-            if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
+            
+            #if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
+            
+            # Terminate if car goes off road
+            if self.get_cross_track_error(self.car, self.track)[1] > 7:
                 terminated = True
-                step_reward = -100
+                step_reward = -1000
 
         if self.render_mode == "human":
             self.render()
@@ -808,6 +814,64 @@ class CarRacing(gym.Env, EzPickle):
             pygame.quit()
 
 
+
+
+    ##########################################################
+
+    ##########################################################
+
+            # Added code
+
+    def point_segment_dist(self, p, a, b):
+        n = b - a
+        norm_n = np.linalg.norm(n)
+        if norm_n < 1e-10:
+            return np.linalg.norm(p - a)
+
+        n = n / norm_n
+        ap = a - p
+        proj_on_line = ap.dot(n) * n
+        
+        if np.linalg.norm(proj_on_line) > norm_n:
+            return min(np.linalg.norm(p - a), np.linalg.norm(p - b))
+        
+        return np.linalg.norm(ap - proj_on_line)
+        
+    def get_cross_track_error(self, car, track):
+        # steer in [-1, 1], gas in [0, 1], break in [0 ,1]
+        pld_min = np.finfo(np.float).max
+        dest_min = 0
+
+        p = car.hull.position
+        p = np.array([p[0], p[1]])
+        
+        for i in range(1, len(track)):
+            ai = np.array([track[i-1][2], track[i-1][3]])
+            bi = np.array([track[i][2], track[i][3]])
+            pld = self.point_segment_dist(p, ai, bi)
+            if pld < pld_min:
+                pld_min = pld 
+                dest_min = i
+        
+        target_heading = track[dest_min][1] 
+        error_heading = target_heading - car.hull.angle
+        error_heading =  atan2(sin(error_heading), cos(error_heading)) 
+        
+        R_world_trackframe = np.array([ [cos(target_heading), sin(target_heading)],
+                                        [-sin(target_heading), cos(target_heading)] ])
+
+        p_trackframe_world = np.array( track[dest_min][2:4] ).reshape((2,1))
+        p_car_world = np.array( [car.hull.position[0], car.hull.position[1]] ).reshape((2,1))
+
+        p_car_trackframe = R_world_trackframe.dot(p_car_world - p_trackframe_world) 
+        error_dist = p_car_trackframe[0][0]
+
+        #print (error_heading * 180.0 / 3.14, error_dist, p_car_trackframe[1][0])
+        return error_heading, error_dist, dest_min
+
+
+
+
 if __name__ == "__main__":
     a = np.array([0.0, 0.0, 0.0])
 
@@ -861,34 +925,6 @@ if __name__ == "__main__":
                 break
     env.close()
 
-
-
-
-
-    ##########################################################
-
-    ##########################################################
-
-            # Added code
-
-    def Positive_cross_track_error(self):
-        # Find nearest point on centerline to car's position
-        nearest_point = min(self.center_line, key=lambda p: math.dist(p, self.car.hull.position))
-
-        error = math.dist(self.car.hull.position, nearest_point)
-
-        return error
-
-    def cross_track_error(self):
-        # Find nearest point on centerline to car's position
-        nearest_point = min(self.center_line, key=lambda p: math.dist(p, self.car.hull.position))
-
-        error = math.dist(self.car.hull.position, nearest_point)
-
-        if math.dist(nearest_point, self.car.wheels[2].position) < math.dist(nearest_point, self.car.wheels[3].position):
-            error *= -1
-
-        return error
 
 
 
