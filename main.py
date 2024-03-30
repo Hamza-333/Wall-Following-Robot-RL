@@ -54,7 +54,6 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
             if time > 0:
                 episode_rewards.append(episode_reward)
                 # print out stats for the episode
-                print(type(t))
                 print("Total Timesteps: {} Episode Num: {} Episode Timesteps: {} Reward: {}".format(time, episode_num, episode_timesteps, episode_reward))
                 
                 # save policy with current stats 
