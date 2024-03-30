@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.nn.functional import relu
 
-class Q_function(nn.module):
+class Q_function(nn.Module):
     def __init__(self, state_dim, action_dim, l1_dim=400, l2_dim=300):
 
         self.l1 = nn.Linear(state_dim + action_dim, l1_dim)
@@ -19,7 +19,7 @@ class Q_function(nn.module):
 
         return x
 
-class Critic(nn.module):
+class Critic(nn.Module):
     def __init__(self, state_dim, action_dim, q1_l1_dim=400, q1_l2_dim=300,
                  q2_l1_dim=400, q2_l2_dim=300):
         super(Critic, self)

@@ -6,7 +6,7 @@ from torch.nn.functional import relu
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-class Actor(nn.module):
+class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action, l1_dim=400, l2_dim=300):
         super(Actor, self)
 
