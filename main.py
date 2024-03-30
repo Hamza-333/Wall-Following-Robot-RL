@@ -1,12 +1,14 @@
+####### Main loop ##########
 from Actor import Actor
 from Critic import Critic
 from utils import ReplayBuffer
 import torch
 import numpy as np
-import time
+import time as t
 from TD3 import TD3
 import gymnasium as gym
 import matplotlib.pyplot as plt
+from car_racing import CarRacing
 
 def evaluate_policy(policy, num_episodes=10):
     total_reward = 0
@@ -27,7 +29,7 @@ def evaluate_policy(policy, num_episodes=10):
     return avg_reward
 
 def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
-              action_noise):
+              action_noise, seed):
     time = 0
     terminated, truncated = True, True
 
@@ -37,11 +39,11 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     episode_timesteps = 0
     episode_num = 0
     episode_rewards = []
-    t0 = time.time()
+    t0 = t.time()
     time_since_eval = 0
     evals = []
-
-    path = "./weights"
+    
+    # path = "./weights"
 
     while time < max_time:
         # considering both terminated and truncated as end of episode
@@ -53,7 +55,9 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 					(time, episode_num, episode_timesteps, episode_reward, int(time.time() - t0))
                 
                 # save policy with current stats 
-                policy.save("Episode_%d" % (episode_num), directory=path)
+                torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
+
+                # policy.save("Episode_%d" % (episode_num), directory=path)
                 
                 # train policy
                 policy.train(replay_buffer, episode_timesteps, batch_size)
@@ -62,7 +66,8 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 avg_reward = evaluate_policy(policy)
                 evals.append(avg_reward)
 
-                policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
+                # policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
+                torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
 
             # reset env after each episode
             state = env.reset(seed = seed)
@@ -95,8 +100,8 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
     avg_reward = evaluate_policy(policy)
     evals.append(avg_reward)
-    policy.save("Final_weights", directory="./")
-
+    # policy.save("Final_weights", directory="./")
+    torch.save(policy.state_dict(), '/content/gdrive/My Drive/final-policy.pk')
     # plot episode rewards
     plt.plot([i for i in range(len(episode_rewards))], episode_rewards)
     plt.xlabel = "Episode number"
@@ -109,8 +114,8 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     plt.show()
 
 if __name__ == "__main__":
-    env = gym.make("CarRacing-v2", continuous=True)
-   
+    # env = gym.make("CarRacing-v2", continuous=True, render_mode=None)
+    env = CarRacing(continuous=True, render_mode=None)
     seed = 0
 
     torch.manual_seed(seed)
@@ -118,10 +123,12 @@ if __name__ == "__main__":
 
     replay_buffer = ReplayBuffer()
     action_dim = env.action_space.shape[0]
-    state_dim = env.observation_space
+    # print(env.action_space.shape[0])
+    state_dim = env.observation_space.shape[0]
+
     max_action = float(env.action_space.high[0])
 
-    policy = TD3(action_dim, state_dim, max_action)
+    policy = TD3(state_dim, action_dim, max_action)
     # frequency to evaluate policy
     eval_freq = 2000
     batch_size = 100

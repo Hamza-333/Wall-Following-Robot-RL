@@ -43,6 +43,7 @@ class TD3(object):
         return self.actor(state).cpu().data.numpy().flatten()
     
     def train(self, iterations, replay_buffer, batch_size=256):
+        print("Training")
         for i in range(iterations):
             self.total_it += 1
             

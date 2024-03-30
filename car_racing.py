@@ -839,7 +839,7 @@ class CarRacing(gym.Env, EzPickle):
         
     def get_cross_track_error(self, car, track):
         # steer in [-1, 1], gas in [0, 1], break in [0 ,1]
-        pld_min = np.finfo(np.float).max
+        pld_min = np.finfo(float).max
         dest_min = 0
 
         p = car.hull.position
