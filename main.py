@@ -65,7 +65,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
 
             # reset env after each episode
-            state = env.reset()
+            state = env.reset(seed = seed)
             terminated, truncated = False, False
             episode_reward = 0
             episode_timesteps = 0
@@ -110,8 +110,9 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
 if __name__ == "__main__":
     env = gym.make("CarRacing-v2", continuous=True)
+   
     seed = 0
-    env.seed(seed)
+
     torch.manual_seed(seed)
     np.random.seed(seed)
 
@@ -129,4 +130,4 @@ if __name__ == "__main__":
     max_time = 100000
 
     action_noise = 0.1
-    run_train(policy, env, replay_buffer, max_time, batch_size, start_time, action_noise)
+    run_train(policy, env, replay_buffer, max_time, batch_size, start_time, action_noise, seed)

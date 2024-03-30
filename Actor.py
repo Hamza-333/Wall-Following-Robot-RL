@@ -8,7 +8,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, max_action, l1_dim=400, l2_dim=300):
-        super(Actor, self)
+        super(Actor, self).__init__()
 
         self.l1 = nn.Linear(state_dim, l1_dim)
         self.l2 = nn.Linear(l1_dim, l2_dim)

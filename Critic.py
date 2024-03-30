@@ -22,7 +22,7 @@ class Q_function(nn.Module):
 class Critic(nn.Module):
     def __init__(self, state_dim, action_dim, q1_l1_dim=400, q1_l2_dim=300,
                  q2_l1_dim=400, q2_l2_dim=300):
-        super(Critic, self)
+        super(Critic, self).__init__()
 
         # Q1
         self.q1 = Q_function(state_dim, action_dim, q1_l1_dim, q1_l2_dim)

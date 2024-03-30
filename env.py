@@ -265,7 +265,7 @@ class CarRacing(gym.Env, EzPickle):
         # observation looks to be an image
         self.observation_space = spaces.Box(
                 np.array([-math.pi, -WINDOW_W]).astype(np.float32),
-                np.array(math.pi, WINDOW_W).astype(np.float32),
+                np.array([math.pi, WINDOW_W]).astype(np.float32),
             ) 
 
         self.render_mode = render_mode
