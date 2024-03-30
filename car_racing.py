@@ -38,7 +38,7 @@ VIDEO_W = 600
 VIDEO_H = 400
 WINDOW_W = 1000
 WINDOW_H = 800
-
+CONSTANT_SPEED = 55
 SCALE = 6.0  # Track scale
 TRACK_RAD = 900 / SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD = 2000 / SCALE  # Game over boundary
@@ -549,7 +549,9 @@ class CarRacing(gym.Env, EzPickle):
 
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
-
+        if CONSTANT_SPEED != 0:
+            for w in self.car.wheels[2:4]:
+                    w.omega = CONSTANT_SPEED
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
@@ -571,7 +573,7 @@ class CarRacing(gym.Env, EzPickle):
 
         # State variable has (error_heading vector, cte)
         self.state = self.get_cross_track_error(self.car, self.track)[0:2]
-
+        # print("STATE:", self.state)
         step_reward = 0
         terminated = False
         truncated = False
@@ -592,13 +594,13 @@ class CarRacing(gym.Env, EzPickle):
             #if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
             
             # Terminate if car goes off road
-            if self.get_cross_track_error(self.car, self.track)[1] > 7:
+            if abs(self.get_cross_track_error(self.car, self.track)[1]) > 7:
                 terminated = True
                 step_reward = -1000
 
         if self.render_mode == "human":
             self.render()
-
+        # print("ACTION:", action)
         return self.state, step_reward, terminated, truncated
 
     def render(self):
