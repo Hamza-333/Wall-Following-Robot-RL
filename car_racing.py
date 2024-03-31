@@ -38,7 +38,6 @@ VIDEO_W = 600
 VIDEO_H = 400
 WINDOW_W = 1000
 WINDOW_H = 800
-CONSTANT_SPEED = 55
 SCALE = 6.0  # Track scale
 TRACK_RAD = 900 / SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD = 2000 / SCALE  # Game over boundary
@@ -256,8 +255,8 @@ class CarRacing(gym.Env, EzPickle):
         #   or normalised however this is not possible here so ignore
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-1]).astype(np.float32),
-                np.array([+1]).astype(np.float32),
+                np.array([-1, 0, 0]).astype(np.float32),
+                np.array([+1, +1, +1]).astype(np.float32),
             )  # steer, gas, brake
         else:
             self.action_space = spaces.Discrete(5)
@@ -549,14 +548,11 @@ class CarRacing(gym.Env, EzPickle):
 
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
-        if CONSTANT_SPEED != 0:
-            for w in self.car.wheels[2:4]:
-                    w.omega = CONSTANT_SPEED
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
-                #self.car.gas(action[1])
-                #self.car.brake(action[2])
+                self.car.gas(action[1])
+                self.car.brake(action[2])
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
@@ -564,8 +560,8 @@ class CarRacing(gym.Env, EzPickle):
                         f"The supported action_space is `{self.action_space}`"
                     )
                 self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
-                #self.car.gas(0.2 * (action == 3))
-                #self.car.brake(0.8 * (action == 4))
+                self.car.gas(0.2 * (action == 3))
+                self.car.brake(0.8 * (action == 4))
 
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
