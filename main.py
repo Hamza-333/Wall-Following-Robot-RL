@@ -41,11 +41,13 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     episode_timesteps = 0
     episode_num = 0
     episode_rewards = []
+    episode_rewards_per_step = []
     t0 = t.time()
     time_since_eval = 0
     evals = []
     eval_freq = 5000
-    path = "./policies/episode-{}.pk"
+    file = "episode-{}"
+    dir = './policies'
 
     while time < max_time:
         # considering both terminated and truncated as end of episode
@@ -53,13 +55,14 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
             print("Episode ended")
             if time > 0:
                 episode_rewards.append(episode_reward)
+                episode_rewards_per_step.append(episode_reward/episode_timesteps)
                 # print out stats for the episode
-                print("Total Timesteps: {} Episode Num: {} Episode Timesteps: {} Reward: {}".format(time, episode_num, episode_timesteps, episode_reward))
+                print("Total Timesteps: {} Episode Num: {} Episode Timesteps: {} Reward: {} Reward Per Step: {}".format(time, episode_num, episode_timesteps, episode_reward, episode_reward/episode_timesteps))
                 
                 # save policy with current stats 
                 # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
-                if episode_num > 100:
-                    policy.save("Episode_{}".format(episode_num), path.format(episode_num))
+                if time > start_time:
+                    policy.save(file.format(episode_num), dir)
                 
                 # train policy
                 policy.train(episode_timesteps, replay_buffer, batch_size)
@@ -69,10 +72,11 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 evals.append(avg_reward)
 
                 print("Episode Num: {} Average Reward: {}".format(episode_num, avg_reward))
+                
                 # policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
                 # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
-                if episode_num > 100:
-                    policy.save("Episode_{}".format(episode_num), path.format(episode_num))
+                if time > start_time:
+                    policy.save(file.format(episode_num), dir)
             # reset env after each episode
             state = env.reset(seed = seed)
             terminated, truncated = False, False
@@ -114,7 +118,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
     avg_reward = evaluate_policy(policy)
     evals.append(avg_reward)
-    policy.save("Final_weights", "./policies/final-policy.pk")
+    policy.save("final_policy", dir)
     # torch.save(policy.state_dict(), '/content/gdrive/My Drive/final-policy.pk')
     # plot episode rewards
     plt.plot([i for i in range(len(episode_rewards))], episode_rewards)
@@ -125,6 +129,11 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     plt.plot([i for i in range(len(evals))], evals)
     plt.xlabel = "Evaluation number"
     plt.ylabel = "Average reward"
+    plt.show()
+
+    plt.plot([i for i in range(len(episode_rewards_per_step))], episode_rewards_per_step)
+    plt.xlabel = "Episode number"
+    plt.ylabel = "Average reward per step"
     plt.show()
 
 if __name__ == "__main__":
