@@ -1,5 +1,5 @@
-import Actor 
-import Critic
+from Actor import Actor 
+from Critic import Critic
 import numpy as np
 import torch
 import torch.nn as nn
@@ -43,6 +43,7 @@ class TD3(object):
         return self.actor(state).cpu().data.numpy().flatten()
     
     def train(self, iterations, replay_buffer, batch_size=256):
+        print("Training")
         for i in range(iterations):
             self.total_it += 1
             
@@ -83,7 +84,7 @@ class TD3(object):
             
             # update the policy
             if i % self.policy_freq == 0:
-                loss_for_actor = -self.critic.Q2(state, self.actor(state)).mean()
+                loss_for_actor = -self.critic.q2(state, self.actor(state)).mean()
                 
                 # Optimize the actor 
                 self.actor_optimizer.zero_grad()
@@ -96,7 +97,9 @@ class TD3(object):
                 
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                     target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-
-                
+        print("Done Training")
+    def save(self, filename, path):
+        torch.save(self.actor.state_dict(), path)
+        torch.save(self.critic.state_dict(), path)               
       
         
