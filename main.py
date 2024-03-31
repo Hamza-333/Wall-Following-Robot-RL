@@ -57,7 +57,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 episode_rewards.append(episode_reward)
                 episode_rewards_per_step.append(episode_reward/episode_timesteps)
                 # print out stats for the episode
-                print("Total Timesteps: {} Episode Num: {} Episode Timesteps: {} Reward: {} Reward Per Step".format(time, episode_num, episode_timesteps, episode_reward, episode_reward/episode_timesteps))
+                print("Total Timesteps: {} Episode Num: {} Episode Timesteps: {} Reward: {} Reward Per Step: {}".format(time, episode_num, episode_timesteps, episode_reward, episode_reward/episode_timesteps))
                 
                 # save policy with current stats 
                 # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
