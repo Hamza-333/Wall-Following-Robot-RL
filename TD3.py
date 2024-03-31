@@ -98,8 +98,10 @@ class TD3(object):
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                     target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
         print("Done Training")
-    def save(self, filename, path):
-        torch.save(self.actor.state_dict(), path)
-        torch.save(self.critic.state_dict(), path)               
+    def save(self, filename, directory):
+        torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
+        torch.save(self.critic.state_dict(), '%s/%s_critic.pth' % (directory, filename))     
       
-        
+    def load(self, filename, directory):
+        self.actor.load_state_dict(torch.load('%s/%s_actor.pth' % (directory, filename)))
+        self.critic.load_state_dict(torch.load('%s/%s_critic.pth' % (directory, filename)))
