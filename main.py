@@ -60,7 +60,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 print("Total Timesteps: {} Episode Num: {} Episode Timesteps: {} Reward: {} Reward Per Step: {}".format(time, episode_num, episode_timesteps, episode_reward, episode_reward/episode_timesteps))
                 
                 # save policy with current stats 
-                # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
+                
                 if time > start_time:
                     policy.save(file.format(episode_num), dir)
                 
@@ -73,8 +73,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
                 print("Episode Num: {} Average Reward: {}".format(episode_num, avg_reward))
                 
-                # policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
-                # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
+               
                 if time > start_time:
                     policy.save(file.format(episode_num), dir)
             # reset env after each episode
@@ -101,11 +100,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
         term_bool = 0 if episode_timesteps + 1 == 2000 else float(terminated)
         trunc_bool = 0 if episode_timesteps + 1 == 2000 else float(truncated)
-        # if time % 100 == 0:
-        #     print("State: ", state)
-        #     print("Next State: ", next_state)
-        #     print("Action: ", action)
-        #     print("Reward: ", reward)
+
         episode_reward += reward
 
         # add experience to the replay_buffer
@@ -119,7 +114,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     avg_reward = evaluate_policy(policy)
     evals.append(avg_reward)
     policy.save("final_policy", dir)
-    # torch.save(policy.state_dict(), '/content/gdrive/My Drive/final-policy.pk')
+ 
     # plot episode rewards
     plt.plot([i for i in range(len(episode_rewards))], episode_rewards)
     plt.xlabel = "Episode number"
@@ -130,14 +125,14 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
     plt.xlabel = "Evaluation number"
     plt.ylabel = "Average reward"
     plt.show()
-
+    # plot reward per step
     plt.plot([i for i in range(len(episode_rewards_per_step))], episode_rewards_per_step)
     plt.xlabel = "Episode number"
     plt.ylabel = "Average reward per step"
     plt.show()
 
 if __name__ == "__main__":
-    # env = gym.make("CarRacing-v2", continuous=True, render_mode=None)
+
     env = CarRacing(continuous=True, render_mode='human')
     seed = 0
 
@@ -146,7 +141,7 @@ if __name__ == "__main__":
 
     replay_buffer = ReplayBuffer()
     action_dim = env.action_space.shape[0]
-    # print(env.action_space.shape[0])
+
     state_dim = env.observation_space.shape[0]
 
     max_action = float(env.action_space.high[0])
