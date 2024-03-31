@@ -17,7 +17,7 @@ def evaluate_policy(policy, num_episodes=10):
     for i in range(num_episodes):
         state = env.reset()
         next_state = state
-        terminated, turncated = False, False
+        terminated, truncated = False, False
         while not terminated and not truncated:
             action = policy.select_action(np.array(next_state))
             next_state, reward, terminated, truncated = env.step(action)
@@ -67,7 +67,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 time_since_eval = 0
                 avg_reward = evaluate_policy(policy)
                 evals.append(avg_reward)
-                
+
                 print("Episode Num: {} Average Reward: {}".format(episode_num, avg_reward))
                 # policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
                 # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
