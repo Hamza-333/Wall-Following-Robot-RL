@@ -10,11 +10,6 @@ class ReplayBuffer(object):
         data = [state, next_state, action, reward, terminated, truncated]
 
         # if there is still space in storage, add data
-        # if len(self.storage) == self.max_size:
-        #     self.storage[int(self.ind)] = data
-        #     self.ind = (self.ptr + 1) % self.max_size
-        # else:
-        #     self.storage.append(data)
         if len(self.storage) < self.max_size:
             self.storage.append(data)
             # space met, reset index back to 0

@@ -18,7 +18,7 @@ def evaluate_policy(policy, num_episodes=10):
         state = env.reset()
         next_state = state
         terminated, turncated = False, False
-        while not terminated or not truncated:
+        while not terminated and not truncated:
             action = policy.select_action(np.array(next_state))
             next_state, reward, terminated, truncated = env.step(action)
             total_reward += reward
@@ -58,8 +58,8 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 
                 # save policy with current stats 
                 # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
-
-                policy.save("Episode_{}".format(episode_num), path.format(episode_num))
+                if episode_num > 100:
+                    policy.save("Episode_{}".format(episode_num), path.format(episode_num))
                 
                 # train policy
                 policy.train(episode_timesteps, replay_buffer, batch_size)
@@ -67,10 +67,12 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
                 time_since_eval = 0
                 avg_reward = evaluate_policy(policy)
                 evals.append(avg_reward)
-
+                
+                print("Episode Num: {} Average Reward: {}".format(episode_num, avg_reward))
                 # policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
                 # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
-                policy.save("Episode_{}".format(episode_num), path.format(episode_num))
+                if episode_num > 100:
+                    policy.save("Episode_{}".format(episode_num), path.format(episode_num))
             # reset env after each episode
             state = env.reset(seed = seed)
             terminated, truncated = False, False
@@ -95,15 +97,15 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
         term_bool = 0 if episode_timesteps + 1 == 2000 else float(terminated)
         trunc_bool = 0 if episode_timesteps + 1 == 2000 else float(truncated)
-        if time % 100 == 0:
-            print("State: ", state)
-            print("Next State: ", next_state)
-            print("Action: ", action)
-            print("Reward: ", reward)
+        # if time % 100 == 0:
+        #     print("State: ", state)
+        #     print("Next State: ", next_state)
+        #     print("Action: ", action)
+        #     print("Reward: ", reward)
         episode_reward += reward
 
         # add experience to the replay_buffer
-        replay_buffer.add(state, next_state, action, reward, term_bool, truncated)
+        replay_buffer.add(state, next_state, action, reward, term_bool, trunc_bool)
         
         state = next_state
         episode_timesteps += 1
