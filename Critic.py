@@ -32,5 +32,5 @@ class Critic(nn.Module):
     def forward(self, x, a):
         x1 = self.q1(x, a)
         x2 = self.q2(x, a)
-
+        
         return x1, x2

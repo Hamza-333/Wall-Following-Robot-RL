@@ -24,5 +24,3 @@ class Actor(nn.Module):
         x = self.max_action * self.tanh(self.l3(x))
 
         return x
-    
-
