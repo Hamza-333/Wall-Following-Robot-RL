@@ -1,5 +1,20 @@
 import numpy as np
 
+def evaluate_policy(policy, env, num_episodes=10):
+    total_reward = 0
+    for i in range(num_episodes):
+        state = env.reset()
+        next_state = state
+        terminated, truncated = False, False
+        while not terminated and not truncated:
+            action = policy.select_action(np.array(next_state))
+            next_state, reward, terminated, truncated = env.step(action)
+            total_reward += reward
+
+    avg_reward = total_reward / num_episodes
+
+    return avg_reward
+
 
 class ReplayBuffer(object):
     def __init__(self, max_size=1e4):
