@@ -8,7 +8,7 @@ import time as t
 from TD3 import TD3
 import gymnasium as gym
 import matplotlib.pyplot as plt
-from car_racing import CarRacing
+from env import CarRacing
 
 
 
