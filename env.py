@@ -1,7 +1,7 @@
 __credits__ = ["Andrea PIERRÉ"]
 
 import math
-from math import atan2, cos, sin
+from math import atan2, cos, sin, sqrt
 from typing import Optional, Union
 
 import numpy as np
@@ -38,6 +38,7 @@ VIDEO_W = 600
 VIDEO_H = 400
 WINDOW_W = 1000
 WINDOW_H = 800
+
 SCALE = 6.0  # Track scale
 TRACK_RAD = 900 / SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD = 2000 / SCALE  # Game over boundary
@@ -55,6 +56,11 @@ GRASS_DIM = PLAYFIELD / 20.0
 MAX_SHAPE_DIM = (
     max(GRASS_DIM, TRACK_WIDTH, TRACK_DETAIL_STEP) * math.sqrt(2) * ZOOM * SCALE
 )
+
+
+CONSTANT_SPEED = 65
+NUM_PREV_ERRORS = 20
+
 
 
 class FrictionDetector(contactListener):
@@ -91,15 +97,12 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 1000.0 / len(self.env.track)
+                self.env.reward += 1 #/ len(self.env.track)
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
-                if (
-                    tile.idx == 0
-                    and self.env.tile_visited_count / len(self.env.track)
-                    > self.lap_complete_percent
-                ):
+                if (#tile.idx == 0 and
+                    (self.env.tile_visited_count / len(self.env.track)) > self.lap_complete_percent):
                     self.env.new_lap = True
         else:
             obj.tiles.remove(tile)
@@ -216,6 +219,10 @@ class CarRacing(gym.Env, EzPickle):
         lap_complete_percent: float = 0.95,
         domain_randomize: bool = False,
         continuous: bool = True,
+        tile_reward = 0,
+        error_shift = 0,
+        constant_speed = CONSTANT_SPEED,
+        num_prev_errors = NUM_PREV_ERRORS
     ):
         EzPickle.__init__(
             self,
@@ -230,8 +237,15 @@ class CarRacing(gym.Env, EzPickle):
         self.lap_complete_percent = lap_complete_percent
         self._init_colors()
 
-        # Added attribute to store points at the center of the track
+
         self.center_line = []
+        self._max_episode_steps = 2500
+        self.episode_steps = 0
+        self.tile_reward = tile_reward
+        self.error_shift = error_shift
+        self.constant_speed = constant_speed
+        self.prev_errors = [0 for _ in range(num_prev_errors)]
+        self.road_half_width = 7
 
         self.contactListener_keepref = FrictionDetector(self, self.lap_complete_percent)
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
@@ -255,17 +269,23 @@ class CarRacing(gym.Env, EzPickle):
         #   or normalised however this is not possible here so ignore
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-1, 0, 0]).astype(np.float32),
-                np.array([+1, +1, +1]).astype(np.float32),
+                np.array([-1]).astype(np.float64),
+                np.array([+1]).astype(np.float64)
+
+                #np.array([-1, 0, 0]).astype(np.float32),
+                #np.array([+1, +1, +1]).astype(np.float32),
             )  # steer, gas, brake
         else:
-            self.action_space = spaces.Discrete(5)
-            # do nothing, left, right, gas, brake
-        # observation looks to be an image
+            self.action_space = spaces.Discrete(2)
+            # only steer left and right
+
+        # obseravtion: [error_heading, CTE, Variance CTE]
         self.observation_space = spaces.Box(
-                np.array([-math.pi, -WINDOW_W]).astype(np.float32),
-                np.array([math.pi, WINDOW_W]).astype(np.float32),
-            ) 
+            np.array([ -math.pi, -WINDOW_W, -2*self.road_half_width]).astype(np.float64),
+            np.array([+math.pi, +WINDOW_W, +2*self.road_half_width]).astype(np.float64))
+        '''self.observation_space = spaces.Box(
+            low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
+        )'''
 
         self.render_mode = render_mode
 
@@ -291,7 +311,7 @@ class CarRacing(gym.Env, EzPickle):
         else:
             # default colours
             self.road_color = np.array([57, 64, 83])
-            self.bg_color = np.array([124, 174, 122])
+            self.bg_color = np.array([110, 99, 98])
             self.grass_color = np.array([131, 144, 115])
 
     def _reinit_colors(self, randomize):
@@ -332,6 +352,9 @@ class CarRacing(gym.Env, EzPickle):
 
         # Go from one checkpoint to another to create track
         x, y, beta = 1.5 * TRACK_RAD, 0, 0
+
+
+
         dest_i = 0
         laps = 0
         track = []
@@ -386,7 +409,6 @@ class CarRacing(gym.Env, EzPickle):
             y += p1y * TRACK_DETAIL_STEP
             track.append((alpha, prev_beta * 0.5 + beta * 0.5, x, y))
 
-            # updating center_line
             self.center_line.append((x,y))
 
             if laps > 4:
@@ -522,6 +544,12 @@ class CarRacing(gym.Env, EzPickle):
         self.new_lap = False
         self.road_poly = []
 
+
+        ################
+
+        self.episode_steps = 0
+        ##############
+
         if self.domain_randomize:
             randomize = True
             if isinstance(options, dict):
@@ -541,18 +569,26 @@ class CarRacing(gym.Env, EzPickle):
                 )
         self.car = Car(self.world, *self.track[0][1:4])
 
+
         if self.render_mode == "human":
             self.render()
-        # return self.step(None)[0], {}
-        return self.step(None)[0]
+        return self.step(None)[0], {}
 
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
+
+        #############
+        # constant speed
+        if CONSTANT_SPEED != 0:
+            for w in self.car.wheels[0:4]:
+                    w.omega = CONSTANT_SPEED
+        #############
+                    
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
-                self.car.gas(action[1])
-                self.car.brake(action[2])
+                #self.car.gas(action[1])
+                #self.car.brake(action[2])
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
@@ -560,21 +596,45 @@ class CarRacing(gym.Env, EzPickle):
                         f"The supported action_space is `{self.action_space}`"
                     )
                 self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
-                self.car.gas(0.2 * (action == 3))
-                self.car.brake(0.8 * (action == 4))
+                #self.car.gas(0.2 * (action == 3))
+                #self.car.brake(0.8 * (action == 4))
 
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
 
-        # State variable has (error_heading vector, cte)
-        self.state = self.get_cross_track_error(self.car, self.track)[0:2]
-        # print("STATE:", self.state)
+        
+        # Updating state
+        self.state = self.getState()
+        #print(self.state)
+        
+
         step_reward = 0
         terminated = False
         truncated = False
         if action is not None:  # First step without action, called from reset()
-            self.reward -= self.get_cross_track_error(self.car, self.track)[1]**2
+            
+            self.update_prev_errors(self.state[1])
+
+            # Penalize oscilations
+            '''
+            if(self.episode_steps>=NUM_PREV_ERRORS):
+                self.reward-= self.get_CTE_variance()'''
+
+            # Reward stability at low error
+            if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
+                self.reward += 10
+            
+            if self.state[1] == 0:
+              self.reward += 1
+            # Penalize CTE
+            elif abs(self.state[1]) <= 1:
+                self.reward -= abs(self.state[1])
+            elif abs(self.state[1]) <= 7:
+              self.reward -= abs(self.state[1])
+            
+            
+
             # We actually don't want to count fuel spent, we want car to be faster.
             # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
             self.car.fuel_spent = 0.0
@@ -586,18 +646,19 @@ class CarRacing(gym.Env, EzPickle):
                 # but like a timeout
                 truncated = True
             x, y = self.car.hull.position
-            
-            #if abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
-            
-            # Terminate if car goes off road
-            if abs(self.get_cross_track_error(self.car, self.track)[1]) > 7:
+            if abs(self.get_cross_track_error(self.car, self.track)[1]) > 7: #or abs(self.get_cross_track_error(self.car, self.track)[1]) > 30:
+                step_reward = -10000
                 terminated = True
-                step_reward = -1000
+
+                
+            # End episode when car goes off road
+            self.episode_steps+=1
+            if self.episode_steps > 2000 or self.new_lap:
+                terminated = True
 
         if self.render_mode == "human":
             self.render()
-        # print("ACTION:", action)
-        return self.state, step_reward, terminated, truncated
+        return self.state, step_reward, terminated, truncated, {}
 
     def render(self):
         if self.render_mode is None:
@@ -652,9 +713,18 @@ class CarRacing(gym.Env, EzPickle):
         self._render_indicators(WINDOW_W, WINDOW_H)
 
         font = pygame.font.Font(pygame.font.get_default_font(), 42)
-        text = font.render("%04i" % self.reward, True, (255, 255, 255), (0, 0, 0))
+
+
+
+
+        text = font.render("%.2f" % self.get_CTE_variance(), True, (255, 255, 255), (0, 0, 0))
+
+
+
+
+
         text_rect = text.get_rect()
-        text_rect.center = (60, WINDOW_H - WINDOW_H * 2.5 / 40.0)
+        text_rect.center = (120, WINDOW_H - WINDOW_H * 2.5 / 40.0)
         self.surf.blit(text, text_rect)
 
         if mode == "human":
@@ -703,12 +773,14 @@ class CarRacing(gym.Env, EzPickle):
             )
 
         # draw road
+        i= 0
         for poly, color in self.road_poly:
             # converting to pixel coordinates
             poly = [(p[0], p[1]) for p in poly]
             color = [int(c) for c in color]
             self._draw_colored_polygon(self.surf, poly, color, zoom, translation, angle)
 
+            i+=1
 
 
     def _render_indicators(self, W, H):
@@ -814,11 +886,28 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
+
+
     ##########################################################
 
     ##########################################################
 
             # Added code
+
+    def cross_track_error(self):
+        # Find nearest point on centerline to car's position
+        nearest_point = min(self.center_line, key=lambda p: math.dist(p, self.car.hull.position))
+
+        # Calculate distance between car's position and nearest point on centerline
+        error = math.dist(self.car.hull.position, nearest_point)
+
+        error_heading, error_dist, dest_min = self.get_cross_track_error(self.car, self.track)
+
+
+        if math.dist(nearest_point, self.car.wheels[2].position) < math.dist(nearest_point, self.car.wheels[3].position):
+            error *= -1
+
+        return error
 
     def point_segment_dist(self, p, a, b):
         n = b - a
@@ -829,12 +918,12 @@ class CarRacing(gym.Env, EzPickle):
         n = n / norm_n
         ap = a - p
         proj_on_line = ap.dot(n) * n
-        
+
         if np.linalg.norm(proj_on_line) > norm_n:
             return min(np.linalg.norm(p - a), np.linalg.norm(p - b))
-        
+
         return np.linalg.norm(ap - proj_on_line)
-        
+
     def get_cross_track_error(self, car, track):
         # steer in [-1, 1], gas in [0, 1], break in [0 ,1]
         pld_min = np.finfo(float).max
@@ -842,33 +931,65 @@ class CarRacing(gym.Env, EzPickle):
 
         p = car.hull.position
         p = np.array([p[0], p[1]])
-        
+
         for i in range(1, len(track)):
             ai = np.array([track[i-1][2], track[i-1][3]])
             bi = np.array([track[i][2], track[i][3]])
             pld = self.point_segment_dist(p, ai, bi)
             if pld < pld_min:
-                pld_min = pld 
+                pld_min = pld
                 dest_min = i
-        
-        target_heading = track[dest_min][1] 
+
+        target_heading = track[dest_min][1]
         error_heading = target_heading - car.hull.angle
-        error_heading =  atan2(sin(error_heading), cos(error_heading)) 
-        
+        error_heading =  atan2(sin(error_heading), cos(error_heading))
+
         R_world_trackframe = np.array([ [cos(target_heading), sin(target_heading)],
                                         [-sin(target_heading), cos(target_heading)] ])
 
         p_trackframe_world = np.array( track[dest_min][2:4] ).reshape((2,1))
         p_car_world = np.array( [car.hull.position[0], car.hull.position[1]] ).reshape((2,1))
 
-        p_car_trackframe = R_world_trackframe.dot(p_car_world - p_trackframe_world) 
-        error_dist = p_car_trackframe[0][0]
+        p_car_trackframe = R_world_trackframe.dot(p_car_world - p_trackframe_world)
+        error_dist = -1 * p_car_trackframe[0][0]
 
         #print (error_heading * 180.0 / 3.14, error_dist, p_car_trackframe[1][0])
         return error_heading, error_dist, dest_min
 
+    def get_CTE_variance(self):
+        # Calculate the mean
+        mean = sum(self.prev_errors) / len(self.prev_errors)
+    
+        # Calculate the squared differences from the mean
+        squared_diff = [(x - mean) ** 2 for x in self.prev_errors]
+    
+        # Calculate the variance
+        return sum(squared_diff) / len(self.prev_errors)
 
 
+    def getState(self):
+
+        CTE = self.get_cross_track_error(self.car, self.track)[0:2]
+
+        # derivative over unit time is just differences
+        derivative = CTE[1] - self.prev_errors[0]
+
+        return np.array([CTE[0], CTE[1], derivative], dtype=np.float64)
+    
+    def update_prev_errors(self, cur_error):
+        self.prev_errors.insert(0, cur_error)
+        self.prev_errors.pop()
+
+# Registering custom enviroment
+    
+def registerEnv(ID):
+    gym.envs.register(
+        id=ID,
+        entry_point='env:CarRacing',  # Specify the module and class name
+        max_episode_steps=2000,  # Optionally, specify maximum episode steps
+        kwargs={}                # Optionally, pass arguments to the environment constructor
+        #reward_threshold=0.0,    # Optionally, specify a reward threshold
+    )
 
 if __name__ == "__main__":
     a = np.array([0.0, 0.0, 0.0])
@@ -903,7 +1024,7 @@ if __name__ == "__main__":
             if event.type == pygame.QUIT:
                 quit = True
 
-    env = CarRacing(render_mode="human", seed=0)
+    env = CarRacing(render_mode="human")
 
     quit = False
     while not quit:
@@ -922,6 +1043,3 @@ if __name__ == "__main__":
             if terminated or truncated or restart or quit:
                 break
     env.close()
-
-
-
