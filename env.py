@@ -58,7 +58,7 @@ MAX_SHAPE_DIM = (
 )
 
 
-CONSTANT_SPEED = 65
+CONSTANT_SPEED = 50
 NUM_PREV_ERRORS = 20
 
 
@@ -97,7 +97,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 1 #/ len(self.env.track)
+                self.env.reward += 0 #/ len(self.env.track)
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -279,7 +279,7 @@ class CarRacing(gym.Env, EzPickle):
             self.action_space = spaces.Discrete(2)
             # only steer left and right
 
-        # obseravtion: [error_heading, CTE, Variance CTE]
+        # obseravtion: [error_heading, CTE, Derivative]
         self.observation_space = spaces.Box(
             np.array([ -math.pi, -WINDOW_W, -2*self.road_half_width]).astype(np.float64),
             np.array([+math.pi, +WINDOW_W, +2*self.road_half_width]).astype(np.float64))
@@ -617,21 +617,23 @@ class CarRacing(gym.Env, EzPickle):
             self.update_prev_errors(self.state[1])
 
             # Penalize oscilations
-            '''
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance()'''
+                self.reward-= self.get_CTE_variance()
 
             # Reward stability at low error
-            if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
-                self.reward += 10
+            '''if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
+                self.reward += 10'''
             
-            if self.state[1] == 0:
-              self.reward += 1
-            # Penalize CTE
-            elif abs(self.state[1]) <= 1:
-                self.reward -= abs(self.state[1])
+            '''if self.state[1] == 0:
+              self.reward += 1'''
+            
+            # Reward low CTE
+            if abs(self.state[1]) <= 1:
+                self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])
             elif abs(self.state[1]) <= 7:
-              self.reward -= abs(self.state[1])
+              self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])
+            
+
             
             
 
@@ -717,7 +719,7 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-        text = font.render("%.2f" % self.get_CTE_variance(), True, (255, 255, 255), (0, 0, 0))
+        text = font.render("%.2f" % self.getState()[1], True, (255, 255, 255), (0, 0, 0))
 
 
 
