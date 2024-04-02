@@ -60,6 +60,7 @@ MAX_SHAPE_DIM = (
 
 CONSTANT_SPEED = 50
 NUM_PREV_ERRORS = 20
+NUM_REWARD_AVG = 5
 
 
 
@@ -246,6 +247,7 @@ class CarRacing(gym.Env, EzPickle):
         self.constant_speed = constant_speed
         self.prev_errors = [0 for _ in range(num_prev_errors)]
         self.road_half_width = 7
+        self.placeholder = 0
 
         self.contactListener_keepref = FrictionDetector(self, self.lap_complete_percent)
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
@@ -618,7 +620,7 @@ class CarRacing(gym.Env, EzPickle):
 
             # Penalize oscilations
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance()
+                self.reward-= self.get_CTE_variance() * 5
 
             # Reward stability at low error
             '''if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
@@ -628,10 +630,15 @@ class CarRacing(gym.Env, EzPickle):
               self.reward += 1'''
             
             # Reward low CTE
-            if abs(self.state[1]) <= 1:
-                self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])
-            elif abs(self.state[1]) <= 7:
-              self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])
+            '''if abs(self.state[1]) <= 1:
+                self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])'''
+            
+            # Reward low CTE AVERGAED
+            if abs(self.state[1]) <= 7:
+              avg_reward = sum([10 / math.exp(0.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
+              self.reward += avg_reward  #7 - abs(self.state[1])
+              
+              
             
 
             
@@ -641,6 +648,8 @@ class CarRacing(gym.Env, EzPickle):
             # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
             self.car.fuel_spent = 0.0
             step_reward = self.reward - self.prev_reward
+            self.placeholder = step_reward
+
             self.prev_reward = self.reward
             if self.tile_visited_count == len(self.track) or self.new_lap:
                 # Truncation due to finishing lap
@@ -719,7 +728,7 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-        text = font.render("%.2f" % self.getState()[1], True, (255, 255, 255), (0, 0, 0))
+        text = font.render("%.2f" %  self.reward, True, (255, 255, 255), (0, 0, 0))
 
 
 

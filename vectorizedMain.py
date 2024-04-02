@@ -56,10 +56,11 @@ if __name__ == "__main__":
 	eval_freq = 1e4			              # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    # Whether or not models are saved
-	expl_noise=0.25		                # Std of Gaussian exploration noise
-	batch_size=100		                # Batch size for both actor and critic
+	half_expl_noise = False
+	expl_noise=0.05		                # Std of Gaussian exploration noise
+	batch_size=256		                # Batch size for both actor and critic
 	discount=0.99		                  # Discount factor
-	tau=0.005		                    # Target network update rate
+	tau=0.001		                    # Target network update rate
 	policy_noise=0.2		              # Noise added to target policy during critic update
 	noise_clip=0.5	                  # Range to clip target policy noise
 	policy_freq=2			                # Frequency of delayed policy updates
@@ -104,7 +105,7 @@ if __name__ == "__main__":
 	start_timesteps = 0"""
 
 
-	replay_buffer = utils.ReplayBuffer(max_size=40000)
+	replay_buffer = utils.ReplayBuffer()
 	
 	# Evaluate untrained policy
 	evaluations = [evaluate_policy(policy)] 
@@ -133,8 +134,9 @@ if __name__ == "__main__":
 					(total_timesteps, train_iteration, episode_timesteps, max_reward, int(time.time() - t0)))
 				
                 # half exploration noise 
-				if max_reward<5000:
+				if half_expl_noise and max_reward<5000:
 					expl_noise = expl_noise / 2
+					print("Halving expl noise to %f" % expl_noise)
 
 				
 				policy.save("Policy_%d" % (train_iteration), directory="./policies")
@@ -150,7 +152,8 @@ if __name__ == "__main__":
 				np.save("./results/%s" % (file_name), evaluations) 
 			
 			# Reset environment
-			obs, info = envs.reset(seed=seed)
+			obs, info = envs.reset(seed=[seed + i for i in range(num_envs)])
+			seed+=num_envs
 			all_done = np.full(num_envs, False, dtype=bool)
 			episode_reward = np.zeros(num_envs, dtype=float)
 			episode_timesteps = 0
