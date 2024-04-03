@@ -5,6 +5,7 @@ import numpy as np
 from utils import evaluate_policy
 import matplotlib.pyplot as plt
 
+
 # Instantiate the env
 env = CarRacing(render_mode = 'human')
 

@@ -18,6 +18,10 @@ max_episode_steps = 2000
 NUM_PARALLEL_ENVS = 3
 FIN_EPISODES_BEFORE_TRAIN = 4
 
+EXPL_NOISE_REWARD_THRESHOLD = 5000
+AVG_REWARD_THRESHOLD = 15500
+TAU_REWARD_TRHESHOLD = 5000
+
 
 
 # Runs policy for X episodes and returns average reward
@@ -52,17 +56,17 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 
 	seed = 0                          # Sets Gym, PyTorch and Numpy seeds
-	start_timesteps = 5000             # How many time steps purely random policy is run for
+	start_timesteps = 2000             # How many time steps purely random policy is run for
 	eval_freq = 1e4			              # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    # Whether or not models are saved
 	half_expl_noise = False
-	expl_noise=0.05		                # Std of Gaussian exploration noise
+	expl_noise=0.01		                # Std of Gaussian exploration noise
 	batch_size=256		                # Batch size for both actor and critic
 	discount=0.99		                  # Discount factor
 	tau=0.001		                    # Target network update rate
-	policy_noise=0.2		              # Noise added to target policy during critic update
-	noise_clip=0.5	                  # Range to clip target policy noise
+	policy_noise=0.1		              # Noise added to target policy during critic update
+	noise_clip=0.25	                  # Range to clip target policy noise
 	policy_freq=2			                # Frequency of delayed policy updates
 
 
@@ -95,20 +99,24 @@ if __name__ == "__main__":
 	max_action = float(envs.single_action_space.high[0])
 
 	# Initialize policy
-	policy = TD3(state_dim, action_dim, max_action)
+	policy = TD3(state_dim, action_dim, max_action, policy_noise=policy_noise, noise_clip=noise_clip)
 
 	# Load already trained policy
-	"""
-	filename = "Episode_104"
-	directory = "./models"
+	load_policy = False
+	load_init_steps = max_timesteps #10000
+	'''
+	filename = "Policy_19(1)"
+	directory = "./policies"
 	policy.load(filename, directory)
-	start_timesteps = 0"""
+	start_timesteps = 0
+	'''
+
 
 
 	replay_buffer = utils.ReplayBuffer()
 	
 	# Evaluate untrained policy
-	evaluations = [evaluate_policy(policy)] 
+	evaluations = []#evaluations = [evaluate_policy(policy)] 
 
 	total_timesteps = 0
 	timesteps_since_eval = 0
@@ -117,6 +125,7 @@ if __name__ == "__main__":
 	all_done = np.full(num_envs, True, dtype=bool)
 	
 	episode_count = 0
+	avg_reward = 0
 
 
 	t0 = time.time()
@@ -125,28 +134,42 @@ if __name__ == "__main__":
 		#print("total_timesteps:", total_timesteps, end='\r')
 		
 		if all_done.all(): 
-			print('Done')
+			# calculate average reward over episodes
+
+			if num_fin_episodes!=0: avg_reward /= num_fin_episodes
+
 			num_fin_episodes = 0
+
 	
-			if total_timesteps != 0:
+			if total_timesteps != 0 and (not load_policy or total_timesteps>=load_init_steps):
 				
-				print("Total T: %d Train iteration: %d Episodes T: %d Best Reward: %f  --  Wallclk T: %d sec" % \
-					(total_timesteps, train_iteration, episode_timesteps, max_reward, int(time.time() - t0)))
+				print("\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f   --  Wallclk T: %d sec" % \
+					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, int(time.time() - t0)))
 				
+				if avg_reward >= AVG_REWARD_THRESHOLD:
+					print("\n\nAvg Reward Threshold Met -- Training Terminated\n")
+					break
+
+				if avg_reward >= TAU_REWARD_TRHESHOLD:
+					tau = 0.0005
+					print("\n\n\nHalving Tau to %f \n\n\n" % tau)
+
+
                 # half exploration noise 
-				if half_expl_noise and max_reward<5000:
+				if half_expl_noise and avg_reward >= EXPL_NOISE_REWARD_THRESHOLD:
 					expl_noise = expl_noise / 2
-					print("Halving expl noise to %f" % expl_noise)
+					print("\n\n\nHalving expl noise to %f \n\n\n" % expl_noise)
 
 				
 				policy.save("Policy_%d" % (train_iteration), directory="./policies")
 				
-				policy.train(episode_timesteps, replay_buffer, batch_size)
+				policy.train(episode_timesteps, replay_buffer, tau, batch_size)
 			
 			# Evaluate episode
 			if timesteps_since_eval >= eval_freq:
 				timesteps_since_eval %= eval_freq
-				evaluations.append(evaluate_policy(policy))
+				eval_score = evaluate_policy(policy)
+				evaluations.append(eval_score)
 				
 				if save_models: policy.save(file_name, directory="./pytorch_models")
 				np.save("./results/%s" % (file_name), evaluations) 
@@ -160,10 +183,12 @@ if __name__ == "__main__":
 			train_iteration += 1 
 			
 			max_reward = None
+			avg_reward = 0
 		
 		# Select action randomly or according to policy
 		if total_timesteps == start_timesteps:
 			print("\n\n\nPolicy actions started\n\n\n")
+
 		if total_timesteps < start_timesteps:
 			# Random actions for each environment
 			action = envs.action_space.sample()
@@ -197,9 +222,12 @@ if __name__ == "__main__":
 				max_reward = max(max_reward, max(episode_reward[finished]))
 			else:
 				max_reward = max(episode_reward[finished])
+
+			avg_reward += sum(episode_reward[finished])
 			
 			#set episode reward for respective environments 0
 			episode_reward[finished] = 0
+
 			
 
 
@@ -220,7 +248,8 @@ if __name__ == "__main__":
 		episode_timesteps += num_envs
 		total_timesteps += num_envs
 		timesteps_since_eval += num_envs
-		
+
+
 	# Final evaluation 
 	evaluations.append(evaluate_policy(policy))
 	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")

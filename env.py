@@ -36,8 +36,8 @@ STATE_W = 96  # less than Atari 160x192
 STATE_H = 96
 VIDEO_W = 600
 VIDEO_H = 400
-WINDOW_W = 1000
-WINDOW_H = 800
+WINDOW_W = 800
+WINDOW_H = 600
 
 SCALE = 6.0  # Track scale
 TRACK_RAD = 900 / SCALE  # Track is heavily morphed circle with this radius
@@ -598,8 +598,8 @@ class CarRacing(gym.Env, EzPickle):
                         f"The supported action_space is `{self.action_space}`"
                     )
                 self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
-                #self.car.gas(0.2 * (action == 3))
-                #self.car.brake(0.8 * (action == 4))
+                self.car.gas(0.2 * (action == 3))
+                self.car.brake(0.8 * (action == 4))
 
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
@@ -609,18 +609,19 @@ class CarRacing(gym.Env, EzPickle):
         # Updating state
         self.state = self.getState()
         #print(self.state)
-        
+        self.update_prev_errors(self.state[1])
 
         step_reward = 0
         terminated = False
         truncated = False
         if action is not None:  # First step without action, called from reset()
             
-            self.update_prev_errors(self.state[1])
+            
 
             # Penalize oscilations
+            
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance() * 5
+                self.reward-= self.get_CTE_variance() * 20
 
             # Reward stability at low error
             '''if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
@@ -634,11 +635,11 @@ class CarRacing(gym.Env, EzPickle):
                 self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])'''
             
             # Reward low CTE AVERGAED
-            if abs(self.state[1]) <= 7:
-              avg_reward = sum([10 / math.exp(0.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
+            if abs(self.state[1]) <= self.road_half_width:
+              avg_reward = sum([1 / math.exp(1.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
               self.reward += avg_reward  #7 - abs(self.state[1])
               
-              
+              '''https://www.desmos.com/calculator/gkammxfabw'''
             
 
             
@@ -657,8 +658,8 @@ class CarRacing(gym.Env, EzPickle):
                 # but like a timeout
                 truncated = True
             x, y = self.car.hull.position
-            if abs(self.get_cross_track_error(self.car, self.track)[1]) > 7: #or abs(self.get_cross_track_error(self.car, self.track)[1]) > 30:
-                step_reward = -10000
+            if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width: #or abs(self.get_cross_track_error(self.car, self.track)[1]) > 30:
+                step_reward = -100
                 terminated = True
 
                 
@@ -728,7 +729,7 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-        text = font.render("%.2f" %  self.reward, True, (255, 255, 255), (0, 0, 0))
+        text = font.render("%.2f" %  (self.getState()[1]), True, (255, 255, 255), (0, 0, 0))
 
 
 
@@ -981,11 +982,15 @@ class CarRacing(gym.Env, EzPickle):
     def getState(self):
 
         CTE = self.get_cross_track_error(self.car, self.track)[0:2]
+        
+        normalized_error_heading = 2 * CTE[0] / math.pi
+
+        normalized_CTE = CTE[1] / self.road_half_width
 
         # derivative over unit time is just differences
-        derivative = CTE[1] - self.prev_errors[0]
+        derivative = (normalized_CTE - self.prev_errors[1]) * 10
 
-        return np.array([CTE[0], CTE[1], derivative], dtype=np.float64)
+        return np.array([normalized_error_heading, normalized_CTE, derivative], dtype=np.float64)
     
     def update_prev_errors(self, cur_error):
         self.prev_errors.insert(0, cur_error)
