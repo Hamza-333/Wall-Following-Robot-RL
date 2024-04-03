@@ -578,9 +578,9 @@ class CarRacing(gym.Env, EzPickle):
 
         #############
         # constant speed
-        if CONSTANT_SPEED != 0:
-            for w in self.car.wheels[0:4]:
-                    w.omega = CONSTANT_SPEED
+        #if CONSTANT_SPEED != 0:
+        #    for w in self.car.wheels[0:4]:
+        #            w.omega = CONSTANT_SPEED
         #############
                     
         if action is not None:
