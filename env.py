@@ -271,15 +271,12 @@ class CarRacing(gym.Env, EzPickle):
         #   or normalised however this is not possible here so ignore
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-1]).astype(np.float64),
-                np.array([+1]).astype(np.float64)
-
-                #np.array([-1, 0, 0]).astype(np.float32),
-                #np.array([+1, +1, +1]).astype(np.float32),
+                np.array([-1, 0, 0]).astype(np.float32),
+                np.array([+1, +1, +1]).astype(np.float32),
             )  # steer, gas, brake
         else:
-            self.action_space = spaces.Discrete(2)
-            # only steer left and right
+            self.action_space = spaces.Discrete(4)
+            # only steer left and right, and for acceleration: gas, break
 
         # obseravtion: [error_heading, CTE, Derivative]
         self.observation_space = spaces.Box(
@@ -589,8 +586,8 @@ class CarRacing(gym.Env, EzPickle):
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
-                #self.car.gas(action[1])
-                #self.car.brake(action[2])
+                self.car.gas(action[1])
+                self.car.brake(action[2])
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
@@ -598,8 +595,8 @@ class CarRacing(gym.Env, EzPickle):
                         f"The supported action_space is `{self.action_space}`"
                     )
                 self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
-                #self.car.gas(0.2 * (action == 3))
-                #self.car.brake(0.8 * (action == 4))
+                self.car.gas(0.2 * (action == 3))
+                self.car.brake(0.8 * (action == 4))
 
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
@@ -608,9 +605,7 @@ class CarRacing(gym.Env, EzPickle):
         
         # Updating state
         self.state = self.getState()
-        #print(self.state)
-        
-
+       
         step_reward = 0
         terminated = False
         truncated = False
@@ -637,13 +632,8 @@ class CarRacing(gym.Env, EzPickle):
             if abs(self.state[1]) <= 7:
               avg_reward = sum([10 / math.exp(0.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
               self.reward += avg_reward  #7 - abs(self.state[1])
+            
               
-              
-            
-
-            
-            
-
             # We actually don't want to count fuel spent, we want car to be faster.
             # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
             self.car.fuel_spent = 0.0
@@ -725,15 +715,8 @@ class CarRacing(gym.Env, EzPickle):
 
         font = pygame.font.Font(pygame.font.get_default_font(), 42)
 
-
-
-
         text = font.render("%.2f" %  self.reward, True, (255, 255, 255), (0, 0, 0))
-
-
-
-
-
+        
         text_rect = text.get_rect()
         text_rect.center = (120, WINDOW_H - WINDOW_H * 2.5 / 40.0)
         self.surf.blit(text, text_rect)
@@ -896,14 +879,10 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-
-
-
     ##########################################################
 
     ##########################################################
-
-            # Added code
+        # Added code
 
     def cross_track_error(self):
         # Find nearest point on centerline to car's position
@@ -919,7 +898,8 @@ class CarRacing(gym.Env, EzPickle):
             error *= -1
 
         return error
-
+    #################################################################################
+    
     def point_segment_dist(self, p, a, b):
         n = b - a
         norm_n = np.linalg.norm(n)
