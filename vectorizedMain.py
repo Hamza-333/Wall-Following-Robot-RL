@@ -190,7 +190,7 @@ if __name__ == "__main__":
             # all_done marks the environments whose episodes ended
 			all_done = np.logical_or(all_done, finished)
 			
-			print("Episode%d reward for finished enviroments:" % episode_count, episode_reward[finished])
+			print("Episode %d reward for finished enviroments:" % episode_count, episode_reward[finished])
 
             #Set min reward among finished episodes
 			if max_reward is not None:
