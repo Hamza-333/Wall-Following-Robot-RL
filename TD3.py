@@ -17,7 +17,6 @@ class TD3(object):
 		action_dim,
 		max_action,
 		discount=0.99,
-		tau=0.005,
 		policy_noise=0.2,
 		noise_clip=0.5,
 		policy_freq=2
@@ -32,7 +31,6 @@ class TD3(object):
         
         self.max_action = max_action
         self.discount = discount
-        self.tau = tau
         self.policy_noise = policy_noise
         self.noise_clip = noise_clip
         self.policy_freq = policy_freq
@@ -42,17 +40,22 @@ class TD3(object):
         state = torch.FloatTensor(state.reshape(1, -1)).to(device)
         return self.actor(state).cpu().data.numpy().flatten()
     
-    def train(self, iterations, replay_buffer, batch_size=256):
-        print("Training")
+    def select_vectorized_action(self, states):
+        states_tensor = torch.FloatTensor(states).to(device)
+        actions = self.actor(states_tensor)
+        return actions.cpu().data.numpy()
+    
+    def train(self, iterations, replay_buffer, tau, batch_size=256):
         for i in range(iterations):
             self.total_it += 1
             
-            s, ns, ac, r, terminateds, truncateds = replay_buffer.sample(batch_size)
+            s, ns, ac, r, d = replay_buffer.sample(batch_size)
+            
             state = torch.FloatTensor(s).to(device)
             next_state = torch.FloatTensor(ns).to(device)
             action = torch.FloatTensor(ac).to(device)
             reward = torch.FloatTensor(r).to(device)
-            not_done = torch.FloatTensor(1 - terminateds).to(device)
+            done = torch.FloatTensor(1 - d).to(device)
             
             with torch.no_grad():
 			    # For next action,  consider the policy and add noise
@@ -67,7 +70,7 @@ class TD3(object):
 			    # Compute the target Q value
                 target_Q1, target_Q2 = self.critic_target(next_state, next_action)
                 min_target = torch.min(target_Q1, target_Q2)
-                target_Q = reward + (not_done * self.discount * min_target)
+                target_Q = reward + (done * self.discount * min_target)
 
             # Get current Q estimates
             curr_Q1, curr_Q2 = self.critic(state, action)
@@ -93,11 +96,10 @@ class TD3(object):
                 
                 # Update the frozen target models
                 for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
                 
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
-        print("Done Training")
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
     def save(self, filename, directory):
         torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
         torch.save(self.critic.state_dict(), '%s/%s_critic.pth' % (directory, filename))     

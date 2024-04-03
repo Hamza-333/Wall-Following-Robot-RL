@@ -7,7 +7,7 @@ from torch.nn.functional import relu
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, max_action, l1_dim=400, l2_dim=300):
+    def __init__(self, state_dim, action_dim, max_action, l1_dim=100, l2_dim=100):
         super(Actor, self).__init__()
  
         self.l1 = nn.Linear(state_dim, l1_dim)
@@ -24,5 +24,3 @@ class Actor(nn.Module):
         x = self.max_action * self.tanh(self.l3(x))
 
         return x
-    
-
