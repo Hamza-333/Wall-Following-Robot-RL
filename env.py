@@ -621,7 +621,7 @@ class CarRacing(gym.Env, EzPickle):
             # Penalize oscilations
             
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance() * 20
+                self.reward-= self.get_CTE_variance() * 200
 
             # Reward stability at low error
             '''if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
@@ -636,10 +636,12 @@ class CarRacing(gym.Env, EzPickle):
             
             # Reward low CTE AVERGAED
             if abs(self.state[1]) <= self.road_half_width:
-              avg_reward = sum([1 / math.exp(1.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
+              avg_reward = sum([10 / math.exp(0.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
               self.reward += avg_reward  #7 - abs(self.state[1])
               
               '''https://www.desmos.com/calculator/gkammxfabw'''
+              '''https://www.desmos.com/calculator/fqsa9qn28u'''
+              '''https://www.desmos.com/calculator/dtotkkusih'''
             
 
             
@@ -659,7 +661,7 @@ class CarRacing(gym.Env, EzPickle):
                 truncated = True
             x, y = self.car.hull.position
             if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width: #or abs(self.get_cross_track_error(self.car, self.track)[1]) > 30:
-                step_reward = -100
+                step_reward = -1000
                 terminated = True
 
                 
@@ -729,7 +731,7 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-        text = font.render("%.2f" %  (self.getState()[1]), True, (255, 255, 255), (0, 0, 0))
+        text = font.render("%.2f | %.2f" %  (self.getState()[1], self.get_CTE_variance()*100), True, (255, 255, 255), (0, 0, 0))
 
 
 
