@@ -21,7 +21,7 @@ FIN_EPISODES_BEFORE_TRAIN = 4
 EXPL_NOISE_REWARD_THRESHOLD = 5000
 AVG_REWARD_THRESHOLD = 15500
 TAU_REWARD_TRHESHOLD = 5000
-MIN_EPS_TIMESTEPS = 300
+MIN_EPS_TIMESTEPS = 500
 
 
 
@@ -165,9 +165,9 @@ if __name__ == "__main__":
 				policy.save("Policy_%d" % (train_iteration), directory="./policies")
 				
 				if episode_timesteps < MIN_EPS_TIMESTEPS:
+					print("STANDARDIZED TRAINING ITERATIONS")
 					policy.train(MIN_EPS_TIMESTEPS, replay_buffer, tau, batch_size)
 				else:
-					print("STANDARDIZED TRAINING ITERATIONS")
 					policy.train(episode_timesteps, replay_buffer, tau, batch_size)
 			
 			# Evaluate episode
