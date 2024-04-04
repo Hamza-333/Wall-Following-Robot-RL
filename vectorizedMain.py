@@ -57,7 +57,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 
 	seed = 0                          # Sets Gym, PyTorch and Numpy seeds
-	start_timesteps = 1000           # How many time steps purely random policy is run for
+	start_timesteps = 10000           # How many time steps purely random policy is run for
 	eval_freq = 1e4			              # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    # Whether or not models are saved
@@ -159,7 +159,7 @@ if __name__ == "__main__":
                 # half exploration noise 
 				if half_expl_noise and avg_reward >= EXPL_NOISE_REWARD_THRESHOLD:
 					expl_noise = expl_noise / 2
-					half_expl_noise = False
+					# half_expl_noise = False
 					print("\n\n\nHalving expl noise to %f \n\n\n" % expl_noise)
 
 				
