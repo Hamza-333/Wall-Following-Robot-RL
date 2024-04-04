@@ -608,7 +608,7 @@ class CarRacing(gym.Env, EzPickle):
         # the track
         error_heading = self.get_cross_track_error(self.car, self.track)[0]
         proj_distance  = dist * math.cos(error_heading)
-        self.reward += proj_distance
+        self.reward += abs(proj_distance)
         
         # Updating state
         self.state = self.getState()
