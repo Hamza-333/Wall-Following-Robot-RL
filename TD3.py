@@ -46,6 +46,8 @@ class TD3(object):
         return actions.cpu().data.numpy()
     
     def train(self, iterations, replay_buffer, tau, batch_size=256):
+        total_actor_loss = 0
+        total_critic_loss = 0
         for i in range(iterations):
             self.total_it += 1
             
@@ -79,7 +81,7 @@ class TD3(object):
             mse_loss_1 = nn.MSELoss()
             mse_loss_2 = nn.MSELoss()
             loss_for_critic =  mse_loss_1(curr_Q1, target_Q) + mse_loss_2(curr_Q2, target_Q)
-            
+            total_critic_loss += loss_for_critic
             # Optimization for the critic 
             self.critic_optimizer.zero_grad()
             loss_for_critic.backward()
@@ -88,7 +90,7 @@ class TD3(object):
             # update the policy
             if i % self.policy_freq == 0:
                 loss_for_actor = -self.critic.q2(state, self.actor(state)).mean()
-                
+                total_actor_loss += loss_for_actor
                 # Optimize the actor 
                 self.actor_optimizer.zero_grad()
                 loss_for_actor.backward()
@@ -100,6 +102,7 @@ class TD3(object):
                 
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                     target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+        return total_actor_loss, total_critic_loss
     def save(self, filename, directory):
         torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
         torch.save(self.critic.state_dict(), '%s/%s_critic.pth' % (directory, filename))     

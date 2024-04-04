@@ -6,7 +6,7 @@ import argparse
 import os
 import time
 import utils
-
+import matplotlib.pyplot as plt
 
 import gymnasium as gym
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 
 	seed = 0                          # Sets Gym, PyTorch and Numpy seeds
-	start_timesteps = 1e4           # How many time steps purely random policy is run for
+	start_timesteps = 1000           # How many time steps purely random policy is run for
 	eval_freq = 1e4			              # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    # Whether or not models are saved
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 	episode_count = 0
 	avg_reward = 0
 
-
+	actor_losses, critic_losses = [], []
 	t0 = time.time()
 
 	while total_timesteps < max_timesteps:
@@ -159,6 +159,7 @@ if __name__ == "__main__":
                 # half exploration noise 
 				if half_expl_noise and avg_reward >= EXPL_NOISE_REWARD_THRESHOLD:
 					expl_noise = expl_noise / 2
+					half_expl_noise = False
 					print("\n\n\nHalving expl noise to %f \n\n\n" % expl_noise)
 
 				
@@ -166,9 +167,18 @@ if __name__ == "__main__":
 				
 				if episode_timesteps < MIN_EPS_TIMESTEPS:
 					policy.train(MIN_EPS_TIMESTEPS, replay_buffer, tau, batch_size)
+					actor_loss, critic_loss = policy.train(episode_timesteps, replay_buffer, batch_size)
+
+
+					actor_losses.append(actor_loss.to('cpu').detach().numpy())
+					critic_losses.append(critic_loss.to('cpu').detach().numpy())
 				else:
 					print("STANDARDIZED TRAINING ITERATIONS")
-					policy.train(episode_timesteps, replay_buffer, tau, batch_size)
+					actor_loss, critic_loss = policy.train(episode_timesteps, replay_buffer, batch_size)
+
+
+					actor_losses.append(actor_loss.to('cpu').detach().numpy())
+					critic_losses.append(critic_loss.to('cpu').detach().numpy())
 			
 			# Evaluate episode
 			if timesteps_since_eval >= eval_freq:
@@ -261,5 +271,21 @@ if __name__ == "__main__":
 	np.save("./results/%s" % (file_name), evaluations) 
 
 
+	# plot evaluations
+	plt.plot([i for i in range(len(evaluations))], evaluations)
+	plt.xlabel = "Evaluation number"
+	plt.ylabel = "Reward"
+	plt.show()
 
+	# plot actor losses
+	plt.plot([i for i in range(len(actor_losses))], actor_losses)
+	plt.xlabel = "Episode number"
+	plt.ylabel = "Actor loss"
+	plt.show()
+
+	# plot critic losses
+	plt.plot([i for i in range(len(critic_losses))], critic_losses)
+	plt.xlabel = "Episode number"
+	plt.ylabel = "Critic loss"
+	plt.show()
 
