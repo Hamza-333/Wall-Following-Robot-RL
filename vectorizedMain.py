@@ -21,6 +21,7 @@ FIN_EPISODES_BEFORE_TRAIN = 4
 EXPL_NOISE_REWARD_THRESHOLD = 5000
 AVG_REWARD_THRESHOLD = 15500
 TAU_REWARD_TRHESHOLD = 5000
+MIN_EPS_TIMESTEPS = 300
 
 
 
@@ -56,7 +57,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 
 	seed = 0                          # Sets Gym, PyTorch and Numpy seeds
-	start_timesteps = 2000             # How many time steps purely random policy is run for
+	start_timesteps = 1e4           # How many time steps purely random policy is run for
 	eval_freq = 1e4			              # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    # Whether or not models are saved
@@ -151,7 +152,7 @@ if __name__ == "__main__":
 					break
 
 				if avg_reward >= TAU_REWARD_TRHESHOLD:
-					tau = 0.0005
+					tau = 0.001
 					print("\n\n\nHalving Tau to %f \n\n\n" % tau)
 
 
@@ -163,7 +164,11 @@ if __name__ == "__main__":
 				
 				policy.save("Policy_%d" % (train_iteration), directory="./policies")
 				
-				policy.train(episode_timesteps, replay_buffer, tau, batch_size)
+				if episode_timesteps < MIN_EPS_TIMESTEPS:
+					policy.train(MIN_EPS_TIMESTEPS, replay_buffer, tau, batch_size)
+				else:
+					print("STANDARDIZED TRAINING ITERATIONS")
+					policy.train(episode_timesteps, replay_buffer, tau, batch_size)
 			
 			# Evaluate episode
 			if timesteps_since_eval >= eval_freq:
