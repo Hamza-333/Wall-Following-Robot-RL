@@ -597,11 +597,17 @@ class CarRacing(gym.Env, EzPickle):
                 self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
                 self.car.gas(0.2 * (action == 3))
                 self.car.brake(0.8 * (action == 4))
-
+        position1 = self.car.hull.position
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
-
+        position2 =  self.car.hull.position
+        
+        dist = math.dist(position1, position2)
+        # calculate projected distance on the line in the middle of 
+        # the track
+        proj_distance  = dist * math.cos(self.get_cross_track_error(self.car, self.track)[0])
+        self.reward += proj_distance
         
         # Updating state
         self.state = self.getState()
@@ -877,28 +883,6 @@ class CarRacing(gym.Env, EzPickle):
             self.isopen = False
             pygame.quit()
 
-
-
-    ##########################################################
-
-    ##########################################################
-        # Added code
-
-    def cross_track_error(self):
-        # Find nearest point on centerline to car's position
-        nearest_point = min(self.center_line, key=lambda p: math.dist(p, self.car.hull.position))
-
-        # Calculate distance between car's position and nearest point on centerline
-        error = math.dist(self.car.hull.position, nearest_point)
-
-        error_heading, error_dist, dest_min = self.get_cross_track_error(self.car, self.track)
-
-
-        if math.dist(nearest_point, self.car.wheels[2].position) < math.dist(nearest_point, self.car.wheels[3].position):
-            error *= -1
-
-        return error
-    #################################################################################
     
     def point_segment_dist(self, p, a, b):
         n = b - a
