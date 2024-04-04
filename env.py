@@ -606,7 +606,8 @@ class CarRacing(gym.Env, EzPickle):
         dist = math.dist(position1, position2)
         # calculate projected distance on the line in the middle of 
         # the track
-        proj_distance  = dist * math.cos(self.get_cross_track_error(self.car, self.track)[0])
+        error_heading = self.get_cross_track_error(self.car, self.track)[0]
+        proj_distance  = dist * math.cos(error_heading)
         self.reward += proj_distance
         
         # Updating state
