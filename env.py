@@ -59,9 +59,6 @@ MAX_SHAPE_DIM = (
     max(GRASS_DIM, TRACK_WIDTH, TRACK_DETAIL_STEP) * math.sqrt(2) * ZOOM * SCALE
 )
 
-
-CONSTANT_SPEED = 50
-
 #Prev errors for CTE variance calc
 NUM_PREV_ERRORS = 20
 
@@ -69,6 +66,8 @@ NUM_PREV_ERRORS = 20
 CTE_RESCALE = 200
 REWARD_VSHIFT = 10
 OFF_ROAD_PENALTY = -1000
+
+VARIABLE_SPEED ={"On" : True, "min_speed": 30, "max_speed": 70}
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
@@ -230,7 +229,7 @@ class CarRacing(gym.Env, EzPickle):
         continuous: bool = True,
         tile_reward = 0,
         error_shift = 0,
-        constant_speed = CONSTANT_SPEED,
+        constant_speed = 50,
         num_prev_errors = NUM_PREV_ERRORS
     ):
         EzPickle.__init__(
@@ -256,6 +255,7 @@ class CarRacing(gym.Env, EzPickle):
         self.prev_errors = [0 for _ in range(num_prev_errors)]
         self.road_half_width = 7
         self.placeholder = 0
+
 
         self.contactListener_keepref = FrictionDetector(self, self.lap_complete_percent)
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
@@ -290,10 +290,16 @@ class CarRacing(gym.Env, EzPickle):
             self.action_space = spaces.Discrete(2)
             # only steer left and right
 
-        # obseravtion: [error_heading, CTE, Derivative]
-        self.observation_space = spaces.Box(
-            np.array([ -math.pi, -WINDOW_W]).astype(np.float64),
-            np.array([+math.pi, +WINDOW_W]).astype(np.float64), seed = SEED)
+        # obseravtion: [error_heading, CTE, Speed]
+        if not VARIABLE_SPEED['On']:
+            self.observation_space = spaces.Box(
+                np.array([ -1, -1]).astype(np.float64),
+                np.array([+1, +1]).astype(np.float64), seed = SEED)
+        else:
+            self.observation_space = spaces.Box(
+                np.array([ -1, -1, 0]).astype(np.float64),
+                np.array([+1, +1, 1]).astype(np.float64), seed = SEED)
+
             
         '''
             np.array([ -math.pi, -WINDOW_W, -2*self.road_half_width]).astype(np.float64),
@@ -558,6 +564,8 @@ class CarRacing(gym.Env, EzPickle):
 
 
         ################
+        if VARIABLE_SPEED['On']:
+            self.constant_speed = np.random.uniform(VARIABLE_SPEED['min_speed'], VARIABLE_SPEED["max_speed"])
 
         self.episode_steps = 0
         ##############
@@ -591,9 +599,9 @@ class CarRacing(gym.Env, EzPickle):
 
         #############
         # constant speed
-        if CONSTANT_SPEED != 0:
+        if self.constant_speed != 0:
             for w in self.car.wheels[0:4]:
-                    w.omega = CONSTANT_SPEED
+                    w.omega = self.constant_speed
         #############
                     
         if action is not None:
@@ -617,7 +625,11 @@ class CarRacing(gym.Env, EzPickle):
 
         
         # Updating state
-        self.state = self.getState()[0:2]
+        #if variable speed is on, add speed as normalized state
+        if VARIABLE_SPEED["On"]:
+            self.state = self.getState()
+        else:
+            self.state = self.getState()[0:2]
         #print(self.state)
         self.update_prev_errors(self.state[1])
 
@@ -972,10 +984,10 @@ class CarRacing(gym.Env, EzPickle):
 
         normalized_CTE = CTE[1] / self.road_half_width
 
-        # derivative over unit time is just differences
-        derivative = (normalized_CTE - self.prev_errors[1]) * 10
+        normalized_speed = ((self.constant_speed - VARIABLE_SPEED["min_speed"]) / (
+            VARIABLE_SPEED["max_speed"]-VARIABLE_SPEED["min_speed"])) * (0.99) + 0.01
 
-        return np.array([normalized_error_heading, normalized_CTE, derivative], dtype=np.float64)
+        return np.array([normalized_error_heading, normalized_CTE, normalized_speed], dtype=np.float64)
     
     def update_prev_errors(self, cur_error):
         self.prev_errors.insert(0, cur_error)

@@ -17,10 +17,13 @@ max_episode_steps = 2000
 NUM_PARALLEL_ENVS = 3
 FIN_EPISODES_BEFORE_TRAIN = 4
 
+#Options to change expl noise and tau
 LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
 LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Value': 0.0005}
 
+#Avg reward termination condition
 AVG_REWARD_TERMIN_THRESHOLD = 19000
+# Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
 # Specify the file name
@@ -68,7 +71,7 @@ if __name__ == "__main__":
 
 	expl_noise=0.01		                # Std of Gaussian exploration noise
 	batch_size=256		                # Batch size for both actor and critic
-	tau=0.001		                    # Target network update rate
+	tau=0.005		                    # Target network update rate
 	policy_noise=0.1		              # Noise added to target policy during critic update
 	noise_clip=0.25	                  # Range to clip target policy noise
 
@@ -194,8 +197,10 @@ if __name__ == "__main__":
 			
 			# Reset environment
 			print("\nCollecting data:")
+			
 			obs, info = envs.reset(seed=[SEED + i for i in range(num_envs)])
 			SEED+=num_envs
+
 			all_done = np.full(num_envs, False, dtype=bool)
 			episode_reward = np.zeros(num_envs, dtype=float)
 			episode_timesteps = 0
