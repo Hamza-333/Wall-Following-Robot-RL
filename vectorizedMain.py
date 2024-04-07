@@ -6,8 +6,7 @@ import os
 import time
 import utils
 from utils import SEED
-
-
+import csv
 
 import gymnasium as gym
 import env
@@ -24,8 +23,17 @@ LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Value': 0.0005}
 AVG_REWARD_TERMIN_THRESHOLD = 19000
 MIN_EPS_TIMESTEPS = 500
 
+# Specify the file name
+LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
+
+with open(LOGS_FILEPATH, 'w', newline='') as file:
+	log_writer = csv.writer(file)
+
+	# Write headings
+	log_writer.writerow(['r', 'l'])
+
 # Runs policy for X episodes and returns average reward
-def evaluate_policy(policy, eval_episodes=5):
+def evaluate_policy(policy, eval_episodes=1):
 	avg_reward = 0
 	num_fin_episodes = 0
 	obs, info = envs.reset()
@@ -134,13 +142,18 @@ if __name__ == "__main__":
 			# calculate average reward over episodes
 			if num_fin_episodes!=0: avg_reward /= num_fin_episodes
 
-			num_fin_episodes = 0
+			
 
 			if total_timesteps != 0 and (not load_policy or total_timesteps>=load_init_steps):
 				
 				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f   --  Wallclk T: %d sec" % \
 					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, int(time.time() - t0)))
 				
+				# Store metrics
+				with open(LOGS_FILEPATH, 'a', newline='') as file:
+					log_writer = csv.writer(file)
+					log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
+
 				if avg_reward >= AVG_REWARD_TERMIN_THRESHOLD:
 					print("\n\nAvg Reward Threshold Met -- Training Terminated\n")
 					break
@@ -190,6 +203,7 @@ if __name__ == "__main__":
 			
 			max_reward = None
 			avg_reward = 0
+			num_fin_episodes = 0
 		
 		# Select action randomly or according to policy
 		if total_timesteps == start_timesteps:
@@ -254,12 +268,14 @@ if __name__ == "__main__":
 		timesteps_since_eval += num_envs
 
 
+
+
+
 	# Final evaluation 
 	evaluations.append(evaluate_policy(policy))
 	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
 	np.save("./results/%s" % (file_name), evaluations) 
 
-	envs.close()
 
 
 
