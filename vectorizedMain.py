@@ -31,7 +31,8 @@ MIN_EPS_TIMESTEPS = 500
 
 # Specify the file name
 LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
-
+if not os.path.exists(LOGS_FILEPATH):
+		os.makedirs(LOGS_FILEPATH)
 with open(LOGS_FILEPATH, 'w', newline='') as file:
 	log_writer = csv.writer(file)
 
