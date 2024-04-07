@@ -97,7 +97,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
         # execute action and retreive observations
             
-        next_state, reward, terminated, truncated = env.step(action)    
+        next_state, reward, terminated, truncated, info = env.step(action)    
 
         term_bool = 0 if episode_timesteps + 1 == 2000 else float(terminated)
         trunc_bool = 0 if episode_timesteps + 1 == 2000 else float(truncated)
@@ -109,7 +109,7 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
         episode_reward += reward
 
         # add experience to the replay_buffer
-        replay_buffer.add(state, next_state, action, reward, term_bool, trunc_bool)
+        replay_buffer.add(state, next_state, action, reward, terminated or truncated)
         
         state = next_state
         episode_timesteps += 1

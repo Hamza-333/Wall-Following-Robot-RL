@@ -268,6 +268,6 @@ if __name__ == "__main__":
 	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
 	np.save("./results/%s" % (file_name), evaluations) 
 
-	env.close()
+	envs.close()
 
 
