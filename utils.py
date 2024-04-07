@@ -7,7 +7,6 @@ SEED = 0
 
 np.random.seed(SEED)
 
-
 class ReplayBuffer(object):
     def __init__(self, max_size=1e4):
         self.storage = []
@@ -26,7 +25,6 @@ class ReplayBuffer(object):
             self.ind += 1
             if self.ind == self.max_size:
                 self.ind = 0
-
 
     def sample(self, batch_size):
         # randomly sample batch size number of past events

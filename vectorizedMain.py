@@ -21,6 +21,9 @@ FIN_EPISODES_BEFORE_TRAIN = 4
 LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
 LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Value': 0.0005}
 
+#load already trained policy
+LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
+
 #Avg reward termination condition
 AVG_REWARD_TERMIN_THRESHOLD = 19000
 # Time steps below which a standard training iteration param is passed
@@ -36,7 +39,7 @@ with open(LOGS_FILEPATH, 'w', newline='') as file:
 	log_writer.writerow(['r', 'l'])
 
 # Runs policy for X episodes and returns average reward
-def evaluate_policy(policy, eval_episodes=1):
+def evaluate_policy(policy, eval_episodes=5):
 	avg_reward = 0
 	num_fin_episodes = 0
 	obs, info = envs.reset()
@@ -108,17 +111,13 @@ if __name__ == "__main__":
 	# Initialize policy
 	policy = TD3(state_dim, action_dim, max_action, policy_noise=policy_noise, noise_clip=noise_clip)
 
-
 	# Load already trained policy
-	load_policy = False
-	load_init_steps = max_timesteps #10000
-	'''
-	filename = "Policy_19(1)"
-	directory = "./policies"
-	policy.load(filename, directory)
-	start_timesteps = 0
-	'''
-
+	if LOAD_POLICY["On"]:
+		filename = "Policy_19(1)"
+		directory = "./policies"
+		policy.load(filename, directory)
+		start_timesteps = 0
+	
 	# Init replay buffer
 	replay_buffer = utils.ReplayBuffer()
 	
@@ -135,7 +134,6 @@ if __name__ == "__main__":
 	episode_count = 0
 	avg_reward = 0
 
-
 	t0 = time.time()
 
 	while total_timesteps < max_timesteps:
@@ -145,9 +143,7 @@ if __name__ == "__main__":
 			# calculate average reward over episodes
 			if num_fin_episodes!=0: avg_reward /= num_fin_episodes
 
-			
-
-			if total_timesteps != 0 and (not load_policy or total_timesteps>=load_init_steps):
+			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
 				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f   --  Wallclk T: %d sec" % \
 					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, int(time.time() - t0)))
@@ -191,7 +187,6 @@ if __name__ == "__main__":
 				eval_score = evaluate_policy(policy)
 				evaluations.append(eval_score)
 
-
 				if save_models: policy.save(file_name, directory="./pytorch_models")
 				np.save("./results/%s" % (file_name), evaluations) 
 			
@@ -226,7 +221,8 @@ if __name__ == "__main__":
 		# Perform action
 		new_obs, reward, done, truncated, info = envs.step(action) 
 		episode_reward += reward
-        # when an episode ends in any environment
+        
+		# when an episode ends in any environment
 		if info.keys():
 			
 			finished = info['_final_observation']
@@ -251,13 +247,8 @@ if __name__ == "__main__":
 			#set episode reward for respective environments 0
 			episode_reward[finished] = 0
 
-			
-
-
 		done_bool = np.full(num_envs, False, dtype=bool) if episode_timesteps + 1 == max_episode_steps else all_done
 		
-		
-
 		# Store data in replay buffer
 		for i in range(num_envs):
 			if info.keys() and info['_final_observation'][i] == True:
@@ -272,17 +263,11 @@ if __name__ == "__main__":
 		total_timesteps += num_envs
 		timesteps_since_eval += num_envs
 
-
-
-
-
 	# Final evaluation 
 	evaluations.append(evaluate_policy(policy))
 	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
 	np.save("./results/%s" % (file_name), evaluations) 
 
-
-
-
+	env.close()
 
 

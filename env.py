@@ -14,7 +14,6 @@ from gymnasium.utils import EzPickle
 
 from utils import SEED
 
-
 try:
     import Box2D
     from Box2D.b2 import contactListener, fixtureDef, polygonShape
@@ -227,8 +226,6 @@ class CarRacing(gym.Env, EzPickle):
         lap_complete_percent: float = 1.0,
         domain_randomize: bool = False,
         continuous: bool = True,
-        tile_reward = 0,
-        error_shift = 0,
         constant_speed = 50,
         num_prev_errors = NUM_PREV_ERRORS
     ):
@@ -249,8 +246,6 @@ class CarRacing(gym.Env, EzPickle):
         self.center_line = []
         self._max_episode_steps = 2500
         self.episode_steps = 0
-        self.tile_reward = tile_reward
-        self.error_shift = error_shift
         self.constant_speed = constant_speed
         self.prev_errors = [0 for _ in range(num_prev_errors)]
         self.road_half_width = 7
@@ -370,8 +365,6 @@ class CarRacing(gym.Env, EzPickle):
 
         # Go from one checkpoint to another to create track
         x, y, beta = 1.5 * TRACK_RAD, 0, 0
-
-
 
         dest_i = 0
         laps = 0
@@ -723,14 +716,13 @@ class CarRacing(gym.Env, EzPickle):
 
         font = pygame.font.Font(pygame.font.get_default_font(), 42)
 
-
+        ########################################
 
 
         text = font.render("%.2f | %.2f" %  (self.placeholder,  self.get_CTE_variance() * 200), True, (255, 255, 255), (0, 0, 0))
 
 
-
-
+        ########################################
 
         text_rect = text.get_rect()
         text_rect.center = (120, WINDOW_H - WINDOW_H * 2.5 / 40.0)
@@ -894,29 +886,11 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-
-
-
     ##########################################################
 
     ##########################################################
 
-            # Added code
-
-    def cross_track_error(self):
-        # Find nearest point on centerline to car's position
-        nearest_point = min(self.center_line, key=lambda p: math.dist(p, self.car.hull.position))
-
-        # Calculate distance between car's position and nearest point on centerline
-        error = math.dist(self.car.hull.position, nearest_point)
-
-        error_heading, error_dist, dest_min = self.get_cross_track_error(self.car, self.track)
-
-
-        if math.dist(nearest_point, self.car.wheels[2].position) < math.dist(nearest_point, self.car.wheels[3].position):
-            error *= -1
-
-        return error
+    # Added methods
 
     def point_segment_dist(self, p, a, b):
         n = b - a
@@ -975,7 +949,6 @@ class CarRacing(gym.Env, EzPickle):
         # Calculate the variance
         return sum(squared_diff) / len(self.prev_errors)
 
-
     def getState(self):
 
         CTE = self.get_cross_track_error(self.car, self.track)[0:2]
@@ -994,7 +967,6 @@ class CarRacing(gym.Env, EzPickle):
         self.prev_errors.pop()
 
 # Registering custom enviroment
-    
 def registerEnv(ID):
     gym.envs.register(
         id=ID,
