@@ -7,6 +7,10 @@ from torch.autograd import Variable
 import copy
 import torch.nn.functional as F
 import utils
+from utils import SEED
+
+torch.manual_seed(SEED)
+np.random.seed(SEED)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -100,6 +104,7 @@ class TD3(object):
                 
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
                     target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+    
     def save(self, filename, directory):
         torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
         torch.save(self.critic.state_dict(), '%s/%s_critic.pth' % (directory, filename))     

@@ -2,7 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.functional import relu
+from utils import SEED
 
+
+torch.manual_seed(SEED)
+np.random.seed(SEED)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

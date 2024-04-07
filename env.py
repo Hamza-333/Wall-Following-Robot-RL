@@ -12,6 +12,8 @@ from gymnasium.envs.box2d.car_dynamics import Car
 from gymnasium.error import DependencyNotInstalled, InvalidAction
 from gymnasium.utils import EzPickle
 
+from utils import SEED
+
 
 try:
     import Box2D
@@ -59,10 +61,16 @@ MAX_SHAPE_DIM = (
 
 
 CONSTANT_SPEED = 50
+
+#Prev errors for CTE variance calc
 NUM_PREV_ERRORS = 20
-NUM_REWARD_AVG = 5
 
+# Reward constants
+CTE_RESCALE = 200
+REWARD_VSHIFT = 10
+OFF_ROAD_PENALTY = -1000
 
+'''https://www.desmos.com/calculator/dtotkkusih'''
 
 class FrictionDetector(contactListener):
     def __init__(self, env, lap_complete_percent):
@@ -217,7 +225,7 @@ class CarRacing(gym.Env, EzPickle):
         self,
         render_mode: Optional[str] = None,
         verbose: bool = False,
-        lap_complete_percent: float = 0.95,
+        lap_complete_percent: float = 1.0,
         domain_randomize: bool = False,
         continuous: bool = True,
         tile_reward = 0,
@@ -272,7 +280,8 @@ class CarRacing(gym.Env, EzPickle):
         if self.continuous:
             self.action_space = spaces.Box(
                 np.array([-1]).astype(np.float64),
-                np.array([+1]).astype(np.float64)
+                np.array([+1]).astype(np.float64),
+                seed = SEED
 
                 #np.array([-1, 0, 0]).astype(np.float32),
                 #np.array([+1, +1, +1]).astype(np.float32),
@@ -283,12 +292,13 @@ class CarRacing(gym.Env, EzPickle):
 
         # obseravtion: [error_heading, CTE, Derivative]
         self.observation_space = spaces.Box(
+            np.array([ -math.pi, -WINDOW_W]).astype(np.float64),
+            np.array([+math.pi, +WINDOW_W]).astype(np.float64), seed = SEED)
+            
+        '''
             np.array([ -math.pi, -WINDOW_W, -2*self.road_half_width]).astype(np.float64),
-            np.array([+math.pi, +WINDOW_W, +2*self.road_half_width]).astype(np.float64))
-        '''self.observation_space = spaces.Box(
-            low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
-        )'''
-
+            np.array([+math.pi, +WINDOW_W, +2*self.road_half_width]).astype(np.float64), seed = SEED)'''
+        
         self.render_mode = render_mode
 
     def _destroy(self):
@@ -607,63 +617,36 @@ class CarRacing(gym.Env, EzPickle):
 
         
         # Updating state
-        self.state = self.getState()
+        self.state = self.getState()[0:2]
         #print(self.state)
         self.update_prev_errors(self.state[1])
 
         step_reward = 0
         terminated = False
         truncated = False
+
         if action is not None:  # First step without action, called from reset()
             
-            
-
-            # Penalize oscilations
-            
+            # Penalize oscilations using CTE's variance
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance() * 200
-
-            # Reward stability at low error
-            '''if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
-                self.reward += 10'''
-            
-            '''if self.state[1] == 0:
-              self.reward += 1'''
+                self.reward-= self.get_CTE_variance()*CTE_RESCALE
             
             # Reward low CTE
-            '''if abs(self.state[1]) <= 1:
-                self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])'''
-            
-            # Reward low CTE AVERGAED
             if abs(self.state[1]) <= self.road_half_width:
-              avg_reward = sum([10 / math.exp(0.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
-              self.reward += avg_reward  #7 - abs(self.state[1])
-              
-              '''https://www.desmos.com/calculator/gkammxfabw'''
-              '''https://www.desmos.com/calculator/fqsa9qn28u'''
-              '''https://www.desmos.com/calculator/dtotkkusih'''
+              self.reward += REWARD_VSHIFT - self.state[1]**2
             
-
-            
-            
-
-            # We actually don't want to count fuel spent, we want car to be faster.
-            # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
             self.car.fuel_spent = 0.0
             step_reward = self.reward - self.prev_reward
             self.placeholder = step_reward
 
             self.prev_reward = self.reward
-            if self.tile_visited_count == len(self.track) or self.new_lap:
-                # Truncation due to finishing lap
-                # This should not be treated as a failure
-                # but like a timeout
-                truncated = True
-            x, y = self.car.hull.position
-            if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width: #or abs(self.get_cross_track_error(self.car, self.track)[1]) > 30:
-                step_reward = -1000
-                terminated = True
 
+            if self.tile_visited_count == len(self.track) or self.new_lap:
+                truncated = True
+
+            if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width:
+                step_reward = OFF_ROAD_PENALTY
+                terminated = True
                 
             # End episode when car goes off road
             self.episode_steps+=1
@@ -731,7 +714,7 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-        text = font.render("%.2f | %.2f" %  (self.getState()[1], self.get_CTE_variance()*100), True, (255, 255, 255), (0, 0, 0))
+        text = font.render("%.2f | %.2f" %  (self.placeholder,  self.get_CTE_variance() * 200), True, (255, 255, 255), (0, 0, 0))
 
 
 
