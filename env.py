@@ -286,7 +286,7 @@ class CarRacing(gym.Env, EzPickle):
           else:
             self.action_space = spaces.Box(
                 np.array([-1]).astype(np.float32),
-                np.array([+1).astype(np.float32),
+                np.array([+1]).astype(np.float32),
             )  # steer
                           
         else:
@@ -598,19 +598,19 @@ class CarRacing(gym.Env, EzPickle):
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
 
-        #############
+        ################################3
         # constant speed
-        if self.constant_speed != 0:
+        if not ACCELERATION_BRAKE and self.constant_speed != 0:
             for w in self.car.wheels[0:4]:
-                    w.omega = self.constant_speed
-
-        #############
+                w.omega = self.constant_speed
+        ###################################3
                     
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
-                self.car.gas(action[1])
-                self.car.brake(action[2])
+                if ACCELERATION_BRAKE:
+                    self.car.gas(action[1])
+                    self.car.brake(action[2])    
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
@@ -631,9 +631,10 @@ class CarRacing(gym.Env, EzPickle):
         dist = math.dist(position1, position2)
         # calculate projected distance on the line in the middle of 
         # the track
-        error_heading = self.get_cross_track_error(self.car, self.track)[0]
-        proj_distance  = dist * math.cos(error_heading)
-        self.reward += abs(proj_distance)
+        if ACCELERATION_BRAKE:
+            error_heading = self.get_cross_track_error(self.car, self.track)[0]
+            proj_distance  = dist * math.cos(error_heading)
+            self.reward += abs(proj_distance)
         
         # Updating state
 
