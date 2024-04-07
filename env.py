@@ -68,6 +68,8 @@ OFF_ROAD_PENALTY = -1000
 
 VARIABLE_SPEED ={"On" : True, "min_speed": 30, "max_speed": 70}
 
+ACCELERATION_BRAKE = False
+
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
 class FrictionDetector(contactListener):
@@ -273,17 +275,23 @@ class CarRacing(gym.Env, EzPickle):
         # This will throw a warning in tests/envs/test_envs in utils/env_checker.py as the space is not symmetric
         #   or normalised however this is not possible here so ignore
         if self.continuous:
+          
+          
+          if ACCELERATION_BRAKE:
             self.action_space = spaces.Box(
-                np.array([-1]).astype(np.float64),
-                np.array([+1]).astype(np.float64),
-                seed = SEED
-
-                #np.array([-1, 0, 0]).astype(np.float32),
-                #np.array([+1, +1, +1]).astype(np.float32),
+                np.array([-1, 0, 0]).astype(np.float32),
+                np.array([+1, +1, +1]).astype(np.float32),
             )  # steer, gas, brake
+          
+          else:
+            self.action_space = spaces.Box(
+                np.array([-1]).astype(np.float32),
+                np.array([+1]).astype(np.float32),
+            )  # steer
+                          
         else:
-            self.action_space = spaces.Discrete(2)
-            # only steer left and right
+            self.action_space = spaces.Discrete(4)
+            # only steer left and right, and for acceleration: gas, break
 
         # obseravtion: [error_heading, CTE, Speed]
         if not VARIABLE_SPEED['On']:
@@ -590,18 +598,19 @@ class CarRacing(gym.Env, EzPickle):
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
 
-        #############
+        ################################3
         # constant speed
-        if self.constant_speed != 0:
+        if not ACCELERATION_BRAKE and self.constant_speed != 0:
             for w in self.car.wheels[0:4]:
-                    w.omega = self.constant_speed
-        #############
+                w.omega = self.constant_speed
+        ###################################3
                     
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
-                #self.car.gas(action[1])
-                #self.car.brake(action[2])
+                if ACCELERATION_BRAKE:
+                    self.car.gas(action[1])
+                    self.car.brake(action[2])    
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
@@ -612,12 +621,23 @@ class CarRacing(gym.Env, EzPickle):
                 self.car.gas(0.2 * (action == 3))
                 self.car.brake(0.8 * (action == 4))
 
+        position1 = self.car.hull.position
+
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
-
+        position2 =  self.car.hull.position
+        
+        dist = math.dist(position1, position2)
+        # calculate projected distance on the line in the middle of 
+        # the track
+        if ACCELERATION_BRAKE:
+            error_heading = self.get_cross_track_error(self.car, self.track)[0]
+            proj_distance  = dist * math.cos(error_heading)
+            self.reward += abs(proj_distance)
         
         # Updating state
+
         #if variable speed is on, add speed as normalized state
         if VARIABLE_SPEED["On"]:
             self.state = self.getState()
@@ -637,6 +657,7 @@ class CarRacing(gym.Env, EzPickle):
                 self.reward-= self.get_CTE_variance()*CTE_RESCALE
             
             # Reward low CTE
+
             if abs(self.state[1]) <= self.road_half_width:
               self.reward += REWARD_VSHIFT - self.state[1]**2
             
@@ -716,8 +737,9 @@ class CarRacing(gym.Env, EzPickle):
 
         font = pygame.font.Font(pygame.font.get_default_font(), 42)
 
-        ########################################
 
+        ########################################
+        
 
         text = font.render("%.2f | %.2f" %  (self.placeholder,  self.get_CTE_variance() * 200), True, (255, 255, 255), (0, 0, 0))
 
@@ -883,7 +905,6 @@ class CarRacing(gym.Env, EzPickle):
             pygame.display.quit()
             self.isopen = False
             pygame.quit()
-
 
 
     ##########################################################
