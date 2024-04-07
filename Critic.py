@@ -2,6 +2,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.functional import relu
+from utils import SEED
+
+torch.manual_seed(SEED)
+np.random.seed(SEED)
 
 class Q_function(nn.Module):
     def __init__(self, state_dim, action_dim, l1_dim=100, l2_dim=100):
