@@ -7,6 +7,10 @@ from torch.autograd import Variable
 import copy
 import torch.nn.functional as F
 import utils
+from utils import SEED
+
+torch.manual_seed(SEED)
+np.random.seed(SEED)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -17,7 +21,6 @@ class TD3(object):
 		action_dim,
 		max_action,
 		discount=0.99,
-		tau=0.005,
 		policy_noise=0.2,
 		noise_clip=0.5,
 		policy_freq=2
@@ -32,7 +35,6 @@ class TD3(object):
         
         self.max_action = max_action
         self.discount = discount
-        self.tau = tau
         self.policy_noise = policy_noise
         self.noise_clip = noise_clip
         self.policy_freq = policy_freq
@@ -47,7 +49,7 @@ class TD3(object):
         actions = self.actor(states_tensor)
         return actions.cpu().data.numpy()
     
-    def train(self, iterations, replay_buffer, batch_size=256):
+    def train(self, iterations, replay_buffer, tau, batch_size=256):
         for i in range(iterations):
             self.total_it += 1
             
@@ -98,10 +100,11 @@ class TD3(object):
                 
                 # Update the frozen target models
                 for param, target_param in zip(self.critic.parameters(), self.critic_target.parameters()):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
                 
                 for param, target_param in zip(self.actor.parameters(), self.actor_target.parameters()):
-                    target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+                    target_param.data.copy_(tau * param.data + (1 - tau) * target_param.data)
+    
     def save(self, filename, directory):
         torch.save(self.actor.state_dict(), '%s/%s_actor.pth' % (directory, filename))
         torch.save(self.critic.state_dict(), '%s/%s_critic.pth' % (directory, filename))     

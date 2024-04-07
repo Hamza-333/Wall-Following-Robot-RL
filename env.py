@@ -12,6 +12,7 @@ from gymnasium.envs.box2d.car_dynamics import Car
 from gymnasium.error import DependencyNotInstalled, InvalidAction
 from gymnasium.utils import EzPickle
 
+from utils import SEED
 
 try:
     import Box2D
@@ -36,8 +37,8 @@ STATE_W = 96  # less than Atari 160x192
 STATE_H = 96
 VIDEO_W = 600
 VIDEO_H = 400
-WINDOW_W = 1000
-WINDOW_H = 800
+WINDOW_W = 800
+WINDOW_H = 600
 
 SCALE = 6.0  # Track scale
 TRACK_RAD = 900 / SCALE  # Track is heavily morphed circle with this radius
@@ -57,12 +58,17 @@ MAX_SHAPE_DIM = (
     max(GRASS_DIM, TRACK_WIDTH, TRACK_DETAIL_STEP) * math.sqrt(2) * ZOOM * SCALE
 )
 
-
-CONSTANT_SPEED = 50
+#Prev errors for CTE variance calc
 NUM_PREV_ERRORS = 20
-NUM_REWARD_AVG = 5
 
+# Reward constants
+CTE_RESCALE = 200
+REWARD_VSHIFT = 10
+OFF_ROAD_PENALTY = -1000
 
+VARIABLE_SPEED ={"On" : True, "min_speed": 30, "max_speed": 70}
+
+'''https://www.desmos.com/calculator/dtotkkusih'''
 
 class FrictionDetector(contactListener):
     def __init__(self, env, lap_complete_percent):
@@ -217,12 +223,10 @@ class CarRacing(gym.Env, EzPickle):
         self,
         render_mode: Optional[str] = None,
         verbose: bool = False,
-        lap_complete_percent: float = 0.95,
+        lap_complete_percent: float = 1.0,
         domain_randomize: bool = False,
         continuous: bool = True,
-        tile_reward = 0,
-        error_shift = 0,
-        constant_speed = CONSTANT_SPEED,
+        constant_speed = 50,
         num_prev_errors = NUM_PREV_ERRORS
     ):
         EzPickle.__init__(
@@ -242,12 +246,11 @@ class CarRacing(gym.Env, EzPickle):
         self.center_line = []
         self._max_episode_steps = 2500
         self.episode_steps = 0
-        self.tile_reward = tile_reward
-        self.error_shift = error_shift
         self.constant_speed = constant_speed
         self.prev_errors = [0 for _ in range(num_prev_errors)]
         self.road_half_width = 7
         self.placeholder = 0
+
 
         self.contactListener_keepref = FrictionDetector(self, self.lap_complete_percent)
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
@@ -272,7 +275,8 @@ class CarRacing(gym.Env, EzPickle):
         if self.continuous:
             self.action_space = spaces.Box(
                 np.array([-1]).astype(np.float64),
-                np.array([+1]).astype(np.float64)
+                np.array([+1]).astype(np.float64),
+                seed = SEED
 
                 #np.array([-1, 0, 0]).astype(np.float32),
                 #np.array([+1, +1, +1]).astype(np.float32),
@@ -281,14 +285,21 @@ class CarRacing(gym.Env, EzPickle):
             self.action_space = spaces.Discrete(2)
             # only steer left and right
 
-        # obseravtion: [error_heading, CTE, Derivative]
-        self.observation_space = spaces.Box(
-            np.array([ -math.pi, -WINDOW_W, -2*self.road_half_width]).astype(np.float64),
-            np.array([+math.pi, +WINDOW_W, +2*self.road_half_width]).astype(np.float64))
-        '''self.observation_space = spaces.Box(
-            low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
-        )'''
+        # obseravtion: [error_heading, CTE, Speed]
+        if not VARIABLE_SPEED['On']:
+            self.observation_space = spaces.Box(
+                np.array([ -1, -1]).astype(np.float64),
+                np.array([+1, +1]).astype(np.float64), seed = SEED)
+        else:
+            self.observation_space = spaces.Box(
+                np.array([ -1, -1, 0]).astype(np.float64),
+                np.array([+1, +1, 1]).astype(np.float64), seed = SEED)
 
+            
+        '''
+            np.array([ -math.pi, -WINDOW_W, -2*self.road_half_width]).astype(np.float64),
+            np.array([+math.pi, +WINDOW_W, +2*self.road_half_width]).astype(np.float64), seed = SEED)'''
+        
         self.render_mode = render_mode
 
     def _destroy(self):
@@ -354,8 +365,6 @@ class CarRacing(gym.Env, EzPickle):
 
         # Go from one checkpoint to another to create track
         x, y, beta = 1.5 * TRACK_RAD, 0, 0
-
-
 
         dest_i = 0
         laps = 0
@@ -548,6 +557,8 @@ class CarRacing(gym.Env, EzPickle):
 
 
         ################
+        if VARIABLE_SPEED['On']:
+            self.constant_speed = np.random.uniform(VARIABLE_SPEED['min_speed'], VARIABLE_SPEED["max_speed"])
 
         self.episode_steps = 0
         ##############
@@ -581,9 +592,9 @@ class CarRacing(gym.Env, EzPickle):
 
         #############
         # constant speed
-        if CONSTANT_SPEED != 0:
+        if self.constant_speed != 0:
             for w in self.car.wheels[0:4]:
-                    w.omega = CONSTANT_SPEED
+                    w.omega = self.constant_speed
         #############
                     
         if action is not None:
@@ -598,8 +609,8 @@ class CarRacing(gym.Env, EzPickle):
                         f"The supported action_space is `{self.action_space}`"
                     )
                 self.car.steer(-0.6 * (action == 1) + 0.6 * (action == 2))
-                #self.car.gas(0.2 * (action == 3))
-                #self.car.brake(0.8 * (action == 4))
+                self.car.gas(0.2 * (action == 3))
+                self.car.brake(0.8 * (action == 4))
 
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
@@ -607,60 +618,40 @@ class CarRacing(gym.Env, EzPickle):
 
         
         # Updating state
-        self.state = self.getState()
+        #if variable speed is on, add speed as normalized state
+        if VARIABLE_SPEED["On"]:
+            self.state = self.getState()
+        else:
+            self.state = self.getState()[0:2]
         #print(self.state)
-        
+        self.update_prev_errors(self.state[1])
 
         step_reward = 0
         terminated = False
         truncated = False
+
         if action is not None:  # First step without action, called from reset()
             
-            self.update_prev_errors(self.state[1])
-
-            # Penalize oscilations
+            # Penalize oscilations using CTE's variance
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance() * 5
-
-            # Reward stability at low error
-            '''if self.episode_steps>=4 and sum([abs(x) for x in self.prev_errors[0:4]]) <= 1:
-                self.reward += 10'''
-            
-            '''if self.state[1] == 0:
-              self.reward += 1'''
+                self.reward-= self.get_CTE_variance()*CTE_RESCALE
             
             # Reward low CTE
-            '''if abs(self.state[1]) <= 1:
-                self.reward += 10 / math.exp(0.4*abs(self.state[1])) #7 - abs(self.state[1])'''
+            if abs(self.state[1]) <= self.road_half_width:
+              self.reward += REWARD_VSHIFT - self.state[1]**2
             
-            # Reward low CTE AVERGAED
-            if abs(self.state[1]) <= 7:
-              avg_reward = sum([10 / math.exp(0.4*abs(x)) for x in self.prev_errors[0:NUM_REWARD_AVG]]) / NUM_REWARD_AVG
-              self.reward += avg_reward  #7 - abs(self.state[1])
-              
-              
-            
-
-            
-            
-
-            # We actually don't want to count fuel spent, we want car to be faster.
-            # self.reward -=  10 * self.car.fuel_spent / ENGINE_POWER
             self.car.fuel_spent = 0.0
             step_reward = self.reward - self.prev_reward
             self.placeholder = step_reward
 
             self.prev_reward = self.reward
-            if self.tile_visited_count == len(self.track) or self.new_lap:
-                # Truncation due to finishing lap
-                # This should not be treated as a failure
-                # but like a timeout
-                truncated = True
-            x, y = self.car.hull.position
-            if abs(self.get_cross_track_error(self.car, self.track)[1]) > 7: #or abs(self.get_cross_track_error(self.car, self.track)[1]) > 30:
-                step_reward = -10000
-                terminated = True
 
+            if self.tile_visited_count == len(self.track) or self.new_lap:
+                truncated = True
+
+            if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width:
+                step_reward = OFF_ROAD_PENALTY
+                terminated = True
                 
             # End episode when car goes off road
             self.episode_steps+=1
@@ -725,14 +716,13 @@ class CarRacing(gym.Env, EzPickle):
 
         font = pygame.font.Font(pygame.font.get_default_font(), 42)
 
+        ########################################
 
 
-
-        text = font.render("%.2f" %  self.reward, True, (255, 255, 255), (0, 0, 0))
-
+        text = font.render("%.2f | %.2f" %  (self.placeholder,  self.get_CTE_variance() * 200), True, (255, 255, 255), (0, 0, 0))
 
 
-
+        ########################################
 
         text_rect = text.get_rect()
         text_rect.center = (120, WINDOW_H - WINDOW_H * 2.5 / 40.0)
@@ -896,29 +886,11 @@ class CarRacing(gym.Env, EzPickle):
 
 
 
-
-
-
     ##########################################################
 
     ##########################################################
 
-            # Added code
-
-    def cross_track_error(self):
-        # Find nearest point on centerline to car's position
-        nearest_point = min(self.center_line, key=lambda p: math.dist(p, self.car.hull.position))
-
-        # Calculate distance between car's position and nearest point on centerline
-        error = math.dist(self.car.hull.position, nearest_point)
-
-        error_heading, error_dist, dest_min = self.get_cross_track_error(self.car, self.track)
-
-
-        if math.dist(nearest_point, self.car.wheels[2].position) < math.dist(nearest_point, self.car.wheels[3].position):
-            error *= -1
-
-        return error
+    # Added methods
 
     def point_segment_dist(self, p, a, b):
         n = b - a
@@ -977,22 +949,24 @@ class CarRacing(gym.Env, EzPickle):
         # Calculate the variance
         return sum(squared_diff) / len(self.prev_errors)
 
-
     def getState(self):
 
         CTE = self.get_cross_track_error(self.car, self.track)[0:2]
+        
+        normalized_error_heading = 2 * CTE[0] / math.pi
 
-        # derivative over unit time is just differences
-        derivative = CTE[1] - self.prev_errors[0]
+        normalized_CTE = CTE[1] / self.road_half_width
 
-        return np.array([CTE[0], CTE[1], derivative], dtype=np.float64)
+        normalized_speed = ((self.constant_speed - VARIABLE_SPEED["min_speed"]) / (
+            VARIABLE_SPEED["max_speed"]-VARIABLE_SPEED["min_speed"])) * (0.99) + 0.01
+
+        return np.array([normalized_error_heading, normalized_CTE, normalized_speed], dtype=np.float64)
     
     def update_prev_errors(self, cur_error):
         self.prev_errors.insert(0, cur_error)
         self.prev_errors.pop()
 
 # Registering custom enviroment
-    
 def registerEnv(ID):
     gym.envs.register(
         id=ID,
