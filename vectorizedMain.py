@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
 	expl_noise=0.01		                # Std of Gaussian exploration noise
 	batch_size=256		                # Batch size for both actor and critic
-	tau=0.005		                    # Target network update rate
+	tau=0.001		                    # Target network update rate
 	policy_noise=0.1		              # Noise added to target policy during critic update
 	noise_clip=0.25	                  # Range to clip target policy noise
 

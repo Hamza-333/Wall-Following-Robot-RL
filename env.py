@@ -68,7 +68,7 @@ OFF_ROAD_PENALTY = -1000
 
 VARIABLE_SPEED ={"On" : False, "min_speed": 30, "max_speed": 70}
 
-ACCELERATION_BRAKE = True
+ACCELERATION_BRAKE = False
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
@@ -279,14 +279,16 @@ class CarRacing(gym.Env, EzPickle):
           
           if ACCELERATION_BRAKE:
             self.action_space = spaces.Box(
-                np.array([-1, 0, 0]).astype(np.float32),
-                np.array([+1, +1, +1]).astype(np.float32),
+                np.array([-1, 0, 0]).astype(np.float64),
+                np.array([+1, +1, +1]).astype(np.float64),
+                seed = SEED
             )  # steer, gas, brake
           
           else:
             self.action_space = spaces.Box(
-                np.array([-1]).astype(np.float32),
-                np.array([+1]).astype(np.float32),
+                np.array([-1]).astype(np.float64),
+                np.array([+1]).astype(np.float64),
+                seed = SEED
             )  # steer
                           
         else:
@@ -626,12 +628,13 @@ class CarRacing(gym.Env, EzPickle):
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
+
         position2 =  self.car.hull.position
         
-        dist = math.dist(position1, position2)
         # calculate projected distance on the line in the middle of 
         # the track
         if ACCELERATION_BRAKE:
+            dist = math.dist(position1, position2)
             error_heading = self.get_cross_track_error(self.car, self.track)[0]
             proj_distance  = dist * math.cos(error_heading)
             self.reward += abs(proj_distance)
@@ -643,7 +646,7 @@ class CarRacing(gym.Env, EzPickle):
             self.state = self.getState()
         else:
             self.state = self.getState()[0:2]
-        #print(self.state)
+
         self.update_prev_errors(self.state[1])
 
         step_reward = 0
@@ -654,7 +657,7 @@ class CarRacing(gym.Env, EzPickle):
             
             # Penalize oscilations using CTE's variance
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance()*CTE_RESCALE
+                self.reward-= self.get_CTE_variance() * CTE_RESCALE
             
             # Reward low CTE
 
