@@ -25,14 +25,15 @@ LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Value': 0.0005}
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 19000
+AVG_REWARD_TERMIN_THRESHOLD = 1900000
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
 # Specify the file name
 LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
-if not os.path.exists(LOGS_FILEPATH):
-		os.makedirs(LOGS_FILEPATH)
+if not os.path.exists('./benchmarks/logs/'):
+		os.makedirs('./benchmarks/logs/')
+  
 with open(LOGS_FILEPATH, 'w', newline='') as file:
 	log_writer = csv.writer(file)
 

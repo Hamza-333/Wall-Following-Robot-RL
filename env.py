@@ -66,9 +66,9 @@ CTE_RESCALE = 200
 REWARD_VSHIFT = 10
 OFF_ROAD_PENALTY = -1000
 
-VARIABLE_SPEED ={"On" : True, "min_speed": 30, "max_speed": 70}
+VARIABLE_SPEED ={"On" : False, "min_speed": 30, "max_speed": 70}
 
-ACCELERATION_BRAKE = False
+ACCELERATION_BRAKE = True
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
