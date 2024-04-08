@@ -634,10 +634,7 @@ class CarRacing(gym.Env, EzPickle):
         # calculate projected distance on the line in the middle of 
         # the track
         if ACCELERATION_BRAKE:
-            dist = math.dist(position1, position2)
-            error_heading = self.get_cross_track_error(self.car, self.track)[0]
-            proj_distance  = dist * math.cos(error_heading)
-            self.reward += abs(proj_distance) - self.episode_steps
+            self.reward -= self.episode_steps
         
         # Updating state
 
