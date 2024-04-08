@@ -106,7 +106,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 0 #/ len(self.env.track)
+                self.env.reward += 1000/ len(self.env.track)
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -634,7 +634,7 @@ class CarRacing(gym.Env, EzPickle):
         if ACCELERATION_BRAKE:
             error_heading = self.get_cross_track_error(self.car, self.track)[0]
             proj_distance  = dist * math.cos(error_heading)
-            self.reward += abs(proj_distance)
+            self.reward += abs(proj_distance) - self.episode_steps
         
         # Updating state
 
