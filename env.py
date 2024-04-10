@@ -66,9 +66,11 @@ CTE_RESCALE = 200
 REWARD_VSHIFT = 10
 OFF_ROAD_PENALTY = -1000
 
-VARIABLE_SPEED ={"On" : False, "min_speed": 30, "max_speed": 70}
+VARIABLE_SPEED ={"On" : True, "min_speed": 30, "max_speed": 70}
 
 ACCELERATION_BRAKE = False
+
+TimeStepPenalty = 0.10
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
@@ -623,18 +625,18 @@ class CarRacing(gym.Env, EzPickle):
                 self.car.gas(0.2 * (action == 3))
                 self.car.brake(0.8 * (action == 4))
 
-        position1 = self.car.hull.position
+        
 
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
 
-        position2 =  self.car.hull.position
+        
         
         # calculate projected distance on the line in the middle of 
         # the track
         if ACCELERATION_BRAKE:
-            self.reward -= self.episode_steps
+            self.reward -= TimeStepPenalty
         
         # Updating state
 
