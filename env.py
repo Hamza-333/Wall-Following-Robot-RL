@@ -37,7 +37,7 @@ STATE_W = 96  # less than Atari 160x192
 STATE_H = 96
 VIDEO_W = 600
 VIDEO_H = 400
-WINDOW_W = 800
+WINDOW_W = 900
 WINDOW_H = 600
 
 SCALE = 6.0  # Track scale
@@ -103,7 +103,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 1000/ len(self.env.track)
+                self.env.reward += 0 #1000/ len(self.env.track)
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -253,6 +253,7 @@ class CarRacing(gym.Env, EzPickle):
         self.road_half_width = 7
         self.placeholder = 0
         self.prevPos = None
+        self.state = [0,0,0]
 
         self.VARIABLE_SPEED = {"On" : var_speed, "min_speed": 10, "max_speed": 80}
 
@@ -271,8 +272,8 @@ class CarRacing(gym.Env, EzPickle):
         self.invisible_video_window = None
         self.road = None
         self.car: Optional[Car] = None
-        self.reward = 0.0
-        self.prev_reward = 0.0
+        self.reward = 0
+        self.prev_reward = 0
         self.verbose = verbose
         self.new_lap = False
         self.fd_tile = fixtureDef(
@@ -565,8 +566,8 @@ class CarRacing(gym.Env, EzPickle):
             self, self.lap_complete_percent
         )
         self.world.contactListener = self.world.contactListener_bug_workaround
-        self.reward = 0.0
-        self.prev_reward = 0.0
+        self.reward = 0
+        self.prev_reward = 0
         self.tile_visited_count = 0
         self.t = 0.0
         self.new_lap = False
@@ -636,7 +637,8 @@ class CarRacing(gym.Env, EzPickle):
         
         # the track
         if self.ACCELERATION_BRAKE:
-            self.reward -= TimeStepPenalty
+            pass
+            #self.reward -= TimeStepPenalty
         
         # Updating state
         #if variable speed is on, add normalized speed as third state
@@ -682,7 +684,10 @@ class CarRacing(gym.Env, EzPickle):
             self.render()
         
         self.placeholder = step_reward
-        return self.state, step_reward, terminated, truncated, {}
+        
+        out_dict = {"rewardPerTile" : self.getFinalRewardPerTile()}
+
+        return self.state, step_reward, terminated, truncated, out_dict
 
     def render(self):
         if self.render_mode is None:
@@ -742,13 +747,13 @@ class CarRacing(gym.Env, EzPickle):
         ########################################
         
 
-        text = font.render("Step reward: %.2f" %  (self.placeholder), True, (255, 255, 255), (0, 0, 0))
+        text = font.render("SR: %.2f | CTE:%.2f" %  (self.placeholder, self.state[1]), True, (255, 255, 255), (0, 0, 0))
 
 
         ########################################
 
         text_rect = text.get_rect()
-        text_rect.center = (120, WINDOW_H - WINDOW_H * 2.5 / 40.0)
+        text_rect.center = (200, WINDOW_H - WINDOW_H * 2.5 / 40.0)
         self.surf.blit(text, text_rect)
 
         if mode == "human":
@@ -988,6 +993,9 @@ class CarRacing(gym.Env, EzPickle):
         self.prev_errors.insert(0, cur_error)
         self.prev_errors.pop()
 
+    def getFinalRewardPerTile(self):
+        return self.reward / len(self.track)
+    
 # Registering custom enviroment
 def registerEnv(ID):
     gym.envs.register(
@@ -1036,7 +1044,7 @@ if __name__ == "__main__":
     quit = False
     while not quit:
         env.reset()
-        total_reward = 0.0
+        total_reward = 0
         steps = 0
         restart = False
         while True:

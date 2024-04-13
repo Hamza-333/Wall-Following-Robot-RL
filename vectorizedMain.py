@@ -17,17 +17,16 @@ MAX_TIME_STEPS = 1000000
 max_episode_steps = 2000
 
 NUM_PARALLEL_ENVS = 3
-FIN_EPISODES_BEFORE_TRAIN = 4
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.00075}
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 10000, 'Value': 0.00075}
 
 #load already trained policy
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4, 'Policy': 19 }
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 19500
+AVG_REWARD_TERMIN_THRESHOLD = 19800
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -54,7 +53,7 @@ def evaluate_policy(policy, eval_episodes=5):
 		avg_reward += reward
 			
         # when an episode ends in any environment
-		if info.keys():
+		if '_final_observation' in info.keys():
 			
 			finished = info['_final_observation']
 			num_fin = np.count_nonzero(finished)
@@ -87,7 +86,7 @@ if __name__ == "__main__":
 
 	expl_noise=0.01		                # Std of Gaussian exploration noise
 	batch_size=256		                # Batch size for both actor and critic
-	tau=0.001		                    # Target network update rate
+	tau=0.002	                    # Target network update rate
 	policy_noise=0.1		              # Noise added to target policy during critic update
 	noise_clip=0.25	                  # Range to clip target policy noise
 
@@ -166,14 +165,17 @@ if __name__ == "__main__":
 		if all_done.all(): 
 			
 			# calculate average reward over episodes
-			if num_fin_episodes!=0: avg_reward /= num_fin_episodes
+			if num_fin_episodes!=0: 
+				avg_reward /= num_fin_episodes
+				avg_reward_per_tile /= num_fin_episodes
 
 			### Training after all_done as defined ###
 			###########################################
+   
 			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
-				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f   --  Wallclk T: %d sec" % \
-					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, int(time.time() - t0)))
+				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f  Avg Reward/Tile: %.2f  --  Wallclk T: %d sec" % \
+					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, int(time.time() - t0)))
 				
 				# Store metrics
 				with open(LOGS_FILEPATH, 'a', newline='') as file:
@@ -245,6 +247,7 @@ if __name__ == "__main__":
 			episode_timesteps = 0
 			max_reward = None
 			avg_reward = 0
+			avg_reward_per_tile = 0
 			num_fin_episodes = 0
 
 		
@@ -269,7 +272,7 @@ if __name__ == "__main__":
 		episode_reward += reward
         
 		# Episode ends in a environment(s)
-		if info.keys():
+		if '_final_observation' in info.keys():
 			
 			# bool vector marking envs with finished episodes
 			finished = info['_final_observation']
@@ -300,10 +303,16 @@ if __name__ == "__main__":
 			#set episode reward for respective environments in the episode_reward vector to 0
 			episode_reward[finished] = 0
 
+			#Avg reward per tile
+			for i in range(num_fin):
+				avg_reward_per_tile += info['final_info'][finished][i]["rewardPerTile"]
+			
+			
+
 
 		# Store data in replay buffer flattening the obtained vectors into the replay buffer
 		for i in range(num_envs):
-			if info.keys() and info['_final_observation'][i] == True:
+			if '_final_observation' in info.keys() and info['_final_observation'][i] == True:
 				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], 1)
 			else:
 				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], 0)
