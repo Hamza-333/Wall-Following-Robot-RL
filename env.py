@@ -229,6 +229,7 @@ class CarRacing(gym.Env, EzPickle):
         num_prev_errors = NUM_PREV_ERRORS,
         var_speed = False,
         accel_brake = False,
+        penalize_oscl = True,
     ):
         EzPickle.__init__(
             self,
@@ -256,6 +257,8 @@ class CarRacing(gym.Env, EzPickle):
         self.VARIABLE_SPEED = {"On" : var_speed, "min_speed": 10, "max_speed": 80}
 
         self.ACCELERATION_BRAKE = accel_brake
+
+        self.PENALIZE_OSCILLATIONS = penalize_oscl
 
 
         self.contactListener_keepref = FrictionDetector(self, self.lap_complete_percent)
@@ -605,7 +608,7 @@ class CarRacing(gym.Env, EzPickle):
         assert self.car is not None
 
         ################################
-        # constant speed
+        # Enforcing constant speed
         if not self.ACCELERATION_BRAKE and self.constant_speed != 0:
             for w in self.car.wheels[0:4]:
                 w.omega = self.constant_speed
@@ -630,17 +633,13 @@ class CarRacing(gym.Env, EzPickle):
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
-
         
-        
-        # calculate projected distance on the line in the middle of 
         # the track
         if self.ACCELERATION_BRAKE:
             self.reward -= TimeStepPenalty
         
         # Updating state
-
-        #if variable speed is on, add speed as normalized state
+        #if variable speed is on, add normalized speed as third state
         if self.VARIABLE_SPEED["On"]:
             self.state = self.getState()
         else:
@@ -655,11 +654,10 @@ class CarRacing(gym.Env, EzPickle):
         if action is not None:  # First step without action, called from reset()
             
             # Penalize oscilations using CTE's variance
-            if(self.episode_steps>=NUM_PREV_ERRORS):
+            if self.episode_steps>=NUM_PREV_ERRORS and self.PENALIZE_OSCILLATIONS:
                 self.reward-= self.get_CTE_variance() * VARIANCE_RESCALE
             
             # Reward low CTE
-
             if abs(self.state[1]) <= self.road_half_width:
               self.reward += REWARD_VSHIFT - self.state[1]**2
             
@@ -682,6 +680,8 @@ class CarRacing(gym.Env, EzPickle):
 
         if self.render_mode == "human":
             self.render()
+        
+        self.placeholder = step_reward
         return self.state, step_reward, terminated, truncated, {}
 
     def render(self):
@@ -742,7 +742,7 @@ class CarRacing(gym.Env, EzPickle):
         ########################################
         
 
-        text = font.render("%.6f" %  (self.placeholder), True, (255, 255, 255), (0, 0, 0))
+        text = font.render("Step reward: %.2f" %  (self.placeholder), True, (255, 255, 255), (0, 0, 0))
 
 
         ########################################
