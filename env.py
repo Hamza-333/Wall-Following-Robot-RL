@@ -62,14 +62,9 @@ MAX_SHAPE_DIM = (
 NUM_PREV_ERRORS = 20
 
 # Reward constants
-CTE_RESCALE = 200
+VARIANCE_RESCALE = 200
 REWARD_VSHIFT = 10
-OFF_ROAD_PENALTY = -1000
-
-VARIABLE_SPEED ={"On" : True, "min_speed": 30, "max_speed": 70}
-
-ACCELERATION_BRAKE = False
-
+OFF_ROAD_PENALTY = 1000
 TimeStepPenalty = 0.10
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
@@ -231,7 +226,9 @@ class CarRacing(gym.Env, EzPickle):
         domain_randomize: bool = False,
         continuous: bool = True,
         constant_speed = 50,
-        num_prev_errors = NUM_PREV_ERRORS
+        num_prev_errors = NUM_PREV_ERRORS,
+        var_speed = False,
+        accel_brake = False,
     ):
         EzPickle.__init__(
             self,
@@ -254,6 +251,11 @@ class CarRacing(gym.Env, EzPickle):
         self.prev_errors = [0 for _ in range(num_prev_errors)]
         self.road_half_width = 7
         self.placeholder = 0
+        self.prevPos = None
+
+        self.VARIABLE_SPEED = {"On" : var_speed, "min_speed": 10, "max_speed": 80}
+
+        self.ACCELERATION_BRAKE = accel_brake
 
 
         self.contactListener_keepref = FrictionDetector(self, self.lap_complete_percent)
@@ -279,7 +281,7 @@ class CarRacing(gym.Env, EzPickle):
         if self.continuous:
           
           
-          if ACCELERATION_BRAKE:
+          if self.ACCELERATION_BRAKE:
             self.action_space = spaces.Box(
                 np.array([-1, 0, 0]).astype(np.float64),
                 np.array([+1, +1, +1]).astype(np.float64),
@@ -298,7 +300,7 @@ class CarRacing(gym.Env, EzPickle):
             # only steer left and right, and for acceleration: gas, break
 
         # obseravtion: [error_heading, CTE, Speed]
-        if not VARIABLE_SPEED['On']:
+        if not self.VARIABLE_SPEED['On']:
             self.observation_space = spaces.Box(
                 np.array([ -1, -1]).astype(np.float64),
                 np.array([+1, +1]).astype(np.float64), seed = SEED)
@@ -569,8 +571,8 @@ class CarRacing(gym.Env, EzPickle):
 
 
         ################
-        if VARIABLE_SPEED['On']:
-            self.constant_speed = np.random.uniform(VARIABLE_SPEED['min_speed'], VARIABLE_SPEED["max_speed"])
+        if self.VARIABLE_SPEED['On']:
+            self.constant_speed = np.random.uniform(self.VARIABLE_SPEED['min_speed'], self.VARIABLE_SPEED["max_speed"])
 
         self.episode_steps = 0
         ##############
@@ -602,17 +604,17 @@ class CarRacing(gym.Env, EzPickle):
     def step(self, action: Union[np.ndarray, int]):
         assert self.car is not None
 
-        ################################3
+        ################################
         # constant speed
-        if not ACCELERATION_BRAKE and self.constant_speed != 0:
+        if not self.ACCELERATION_BRAKE and self.constant_speed != 0:
             for w in self.car.wheels[0:4]:
                 w.omega = self.constant_speed
-        ###################################3
-                    
+        ###################################
+
         if action is not None:
             if self.continuous:
                 self.car.steer(-action[0])
-                if ACCELERATION_BRAKE:
+                if self.ACCELERATION_BRAKE:
                     self.car.gas(action[1])
                     self.car.brake(action[2])    
             else:
@@ -625,8 +627,6 @@ class CarRacing(gym.Env, EzPickle):
                 self.car.gas(0.2 * (action == 3))
                 self.car.brake(0.8 * (action == 4))
 
-        
-
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
@@ -635,13 +635,13 @@ class CarRacing(gym.Env, EzPickle):
         
         # calculate projected distance on the line in the middle of 
         # the track
-        if ACCELERATION_BRAKE:
+        if self.ACCELERATION_BRAKE:
             self.reward -= TimeStepPenalty
         
         # Updating state
 
         #if variable speed is on, add speed as normalized state
-        if VARIABLE_SPEED["On"]:
+        if self.VARIABLE_SPEED["On"]:
             self.state = self.getState()
         else:
             self.state = self.getState()[0:2]
@@ -656,7 +656,7 @@ class CarRacing(gym.Env, EzPickle):
             
             # Penalize oscilations using CTE's variance
             if(self.episode_steps>=NUM_PREV_ERRORS):
-                self.reward-= self.get_CTE_variance() * CTE_RESCALE
+                self.reward-= self.get_CTE_variance() * VARIANCE_RESCALE
             
             # Reward low CTE
 
@@ -665,7 +665,6 @@ class CarRacing(gym.Env, EzPickle):
             
             self.car.fuel_spent = 0.0
             step_reward = self.reward - self.prev_reward
-            self.placeholder = step_reward
 
             self.prev_reward = self.reward
 
@@ -673,7 +672,7 @@ class CarRacing(gym.Env, EzPickle):
                 truncated = True
 
             if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width:
-                step_reward = OFF_ROAD_PENALTY
+                step_reward = -OFF_ROAD_PENALTY
                 terminated = True
                 
             # End episode when car goes off road
@@ -743,7 +742,7 @@ class CarRacing(gym.Env, EzPickle):
         ########################################
         
 
-        text = font.render("%.2f | %.2f" %  (self.placeholder,  self.get_CTE_variance() * 200), True, (255, 255, 255), (0, 0, 0))
+        text = font.render("%.6f" %  (self.placeholder), True, (255, 255, 255), (0, 0, 0))
 
 
         ########################################
@@ -980,8 +979,8 @@ class CarRacing(gym.Env, EzPickle):
 
         normalized_CTE = CTE[1] / self.road_half_width
 
-        normalized_speed = ((self.constant_speed - VARIABLE_SPEED["min_speed"]) / (
-            VARIABLE_SPEED["max_speed"]-VARIABLE_SPEED["min_speed"])) * (0.99) + 0.01
+        normalized_speed = ((self.constant_speed - self.VARIABLE_SPEED["min_speed"]) / (
+            self.VARIABLE_SPEED["max_speed"] - self.VARIABLE_SPEED["min_speed"])) * (0.99) + 0.01
 
         return np.array([normalized_error_heading, normalized_CTE, normalized_speed], dtype=np.float64)
     

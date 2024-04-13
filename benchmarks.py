@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
-PPO_TRAIN_TIME_STEPS = 2000
+PPO_TRAIN_TIME_STEPS = 10000
 DDPG_TRAIN_TIME_STEPS = 10000
-SAC_TRAIN_TIME_STEPS = 2000
+SAC_TRAIN_TIME_STEPS = 10000
 
 LEARNING_RATE = 0.001
 
@@ -48,9 +48,9 @@ if train:
     ddpg_logger = configure(sac_log_dir, ["stdout", "csv"])
 
     # Instantiate the env
-    ppo_env = CarRacing(render_mode = 'human')
-    sac_env = CarRacing(render_mode = 'human')
-    ddpg_env = CarRacing(render_mode = 'human')
+    ppo_env = CarRacing(render_mode = None)
+    sac_env = CarRacing(render_mode = None)
+    ddpg_env = CarRacing(render_mode = None)
     
 
     # Create monitor wrappers for each algorithm with unique logging directories

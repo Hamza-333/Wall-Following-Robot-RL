@@ -11,6 +11,8 @@ import csv
 import gymnasium as gym
 import env
 
+import argparse
+
 MAX_TIME_STEPS = 1000000
 max_episode_steps = 2000
 
@@ -18,8 +20,8 @@ NUM_PARALLEL_ENVS = 3
 FIN_EPISODES_BEFORE_TRAIN = 4
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Value': 0.0005}
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.00075}
 
 #load already trained policy
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
@@ -68,6 +70,14 @@ def evaluate_policy(policy, eval_episodes=5):
 	return avg
 
 if __name__ == "__main__":
+
+	parser = argparse.ArgumentParser(description='Settings for env')
+
+	parser.add_argument("--var_speed", default=False)					
+	parser.add_argument("--accel_brake", default=False)
+	parser.add_argument("--render_mode", default=None)
+	args = parser.parse_args()
+
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
 	eval_freq = 1e4			             # How often (time steps) we evaluate
@@ -97,7 +107,7 @@ if __name__ == "__main__":
 	
 	# Initialise vectorized environment
 	num_envs= NUM_PARALLEL_ENVS
-	envs = gym.make_vec(env_id, num_envs=num_envs, render_mode='human')
+	envs = gym.make_vec(env_id, num_envs=num_envs, render_mode=args.render_mode, var_speed=args.var_speed, accel_brake = args.accel_brake)
 	
 	#Counter to track finished episode within one iteration of parallel runs
 	num_fin_episodes = 0
@@ -160,13 +170,14 @@ if __name__ == "__main__":
 					break
 					
 				# Lower learning rate 
-				if LOWER_TAU["On"] and avg_reward >= LOWER_TAU["Reward_Threshold"]:
+				if LOWER_TAU["On"] and avg_reward >= LOWER_TAU["Reward_Threshold"] and total_timesteps>=LOWER_TAU["Timesteps_Threshold"]:
+					tau = LOWER_TAU["Value"]
 					print("\n-------Lowered Tau to %f \n" % LOWER_TAU["Value"])
 					LOWER_TAU["On"] = False
 
                 # Lower exploration noise 
 				if LOWER_EXPL_NOISE["On"] and avg_reward >= LOWER_EXPL_NOISE["Reward_Threshold"]:
-					expl_noise = expl_noise / 2
+					expl_noise = LOWER_EXPL_NOISE["Value"]
 					print("\n-------Lowered expl noise to %f \n" % LOWER_EXPL_NOISE["Value"])
 					LOWER_EXPL_NOISE["On"] = False
 
@@ -199,6 +210,7 @@ if __name__ == "__main__":
 			SEED+=num_envs
 
 			all_done = np.full(num_envs, False, dtype=bool)
+			finished = np.full(num_envs, False, dtype=bool)
 			episode_reward = np.zeros(num_envs, dtype=float)
 			episode_timesteps = 0
 			train_iteration += 1 
@@ -206,6 +218,7 @@ if __name__ == "__main__":
 			max_reward = None
 			avg_reward = 0
 			num_fin_episodes = 0
+
 		
 		# Select action randomly or according to policy
 		if total_timesteps == start_timesteps:
@@ -221,7 +234,8 @@ if __name__ == "__main__":
 				action = (action + np.random.normal(0, expl_noise, size=envs.single_action_space.shape[0])).clip(envs.single_action_space.low, envs.single_action_space.high)
 
 		# Perform action
-		new_obs, reward, done, truncated, info = envs.step(action) 
+		new_obs, reward, done, truncated, info = envs.step(action)
+
 		episode_reward += reward
         
 		# when an episode ends in any environment
@@ -254,9 +268,10 @@ if __name__ == "__main__":
 		# Store data in replay buffer
 		for i in range(num_envs):
 			if info.keys() and info['_final_observation'][i] == True:
-				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], float(all_done[i]))
+				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], float(finished[i]))
+				print("env %d: " % i, finished[i])
 			else:
-				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], float(all_done[i]))
+				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], 0)
 
 		obs = new_obs
 
