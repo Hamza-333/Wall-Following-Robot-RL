@@ -19,14 +19,14 @@ max_episode_steps = 2000
 NUM_PARALLEL_ENVS = 3
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 10000, 'Value': 0.00075}
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.01}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.001}
 
 #load already trained policy
-LOAD_POLICY = {"On": False, 'init_time_steps': 1e4, 'Policy': 19 }
+LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 19800
+AVG_REWARD_TERMIN_THRESHOLD = 19500
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -75,7 +75,9 @@ if __name__ == "__main__":
 	parser.add_argument("--penalize_oscl", default=True)
 	parser.add_argument("--var_speed", default=False)		
 	parser.add_argument("--accel_brake", default=False)
-	parser.add_argument("--render_mode", default=None)
+	parser.add_argument("--render_mode", default="human")
+	parser.add_argument("--load_policy", default=None)
+	parser.add_argument("--load_model", default=None)
 	args = parser.parse_args()
 
                 
@@ -84,11 +86,11 @@ if __name__ == "__main__":
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    	# Whether or not models are saved
 
-	expl_noise=0.01		                # Std of Gaussian exploration noise
+	expl_noise=0.02	                	# Std of Gaussian exploration noise
 	batch_size=256		                # Batch size for both actor and critic
-	tau=0.002	                    # Target network update rate
-	policy_noise=0.1		              # Noise added to target policy during critic update
-	noise_clip=0.25	                  # Range to clip target policy noise
+	tau=0.002	                    	# Target network update rate
+	policy_noise=0.1		            # Noise added to target policy during critic update
+	noise_clip=0.25	                  	# Range to clip target policy noise
 
 
 	file_name = "TD3_%s" % (str(SEED))
@@ -105,15 +107,15 @@ if __name__ == "__main__":
 	env_id  = 'center_maintaining'
 	env.registerEnv(env_id)
 	
-	# Initialise vectorized environment
+	# Initialise vectorized environments
 	num_envs= NUM_PARALLEL_ENVS
 	envs = gym.make_vec(
-		env_id, 								# env id for custom registered env
-		num_envs=num_envs, 						# num parallel env for vectorization 
-		render_mode=args.render_mode,			# render pygame display option
-		var_speed=args.var_speed,				# train for variable speeds
-		accel_brake = args.accel_brake,			# train for acceleration and brake
-		penalize_oscl = args.penalize_oscl			# penalize oscilations
+		env_id, 									# env id for custom registered env
+		num_envs=num_envs, 							# num parallel env for vectorization 
+		render_mode=args.render_mode,				# render pygame display option
+		var_speed=args.var_speed,					# train for variable speeds
+		accel_brake = args.accel_brake,				# train for acceleration and brake
+		penalize_oscl = int(args.penalize_oscl)	# penalize oscilations
 		)
 	
 	#Counter to track finished episode within one iteration of parallel runs
@@ -133,9 +135,15 @@ if __name__ == "__main__":
 
 	# Load already trained policy
 	if LOAD_POLICY["On"]:
-		filename = "Policy_" + str(LOAD_POLICY["Policy"])
-		directory = "./policies"
-		policy.load(filename, directory)
+		#Load policy or model based on input
+		if args.load_policy:
+			filename = "Policy_" + str(args.policy_num)
+			directory = "./policies"
+			policy.load(filename, directory)
+		else:
+			filename = "TD3_" + args.model_num
+			directory = "./pytorch_models"
+			policy.load(filename, directory)
 		start_timesteps = 0
 	
 	# Init replay buffer
@@ -178,9 +186,9 @@ if __name__ == "__main__":
 					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, int(time.time() - t0)))
 				
 				# Store metrics
-				# with open(LOGS_FILEPATH, 'a', newline='') as file:
-				# 	log_writer = csv.writer(file)
-				# 	log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
+				with open(LOGS_FILEPATH, 'a', newline='') as file:
+					log_writer = csv.writer(file)
+					log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
 
 				# End learning condtion
 				if avg_reward >= AVG_REWARD_TERMIN_THRESHOLD:
@@ -280,7 +288,7 @@ if __name__ == "__main__":
 			# current number of finished environments
 			num_fin = np.count_nonzero(finished)
 			
-			# total number of finished envs
+			# total number of finsihed envs
 			num_fin_episodes += num_fin
 
 			# number of finished episodes in current data collection iteration
@@ -299,24 +307,19 @@ if __name__ == "__main__":
 
 			# cumulative sum for eventual avg calculation at the end of data collection
 			avg_reward += sum(episode_reward[finished])
-			tmp_reward = episode_reward.copy()
+			
 			#set episode reward for respective environments in the episode_reward vector to 0
 			episode_reward[finished] = 0
 
 			#Avg reward per tile
 			for i in range(num_fin):
 				avg_reward_per_tile += info['final_info'][finished][i]["rewardPerTile"]
-			
-			
 
 
 		# Store data in replay buffer flattening the obtained vectors into the replay buffer
 		for i in range(num_envs):
 			if '_final_observation' in info.keys() and info['_final_observation'][i] == True:
 				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], 1)
-				with open(LOGS_FILEPATH, 'a', newline='') as file:
-					log_writer = csv.writer(file)
-					log_writer.writerow([tmp_reward[i], episode_timesteps//num_envs])
 			else:
 				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], 0)
 

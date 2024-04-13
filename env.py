@@ -62,10 +62,12 @@ MAX_SHAPE_DIM = (
 NUM_PREV_ERRORS = 20
 
 # Reward constants
-VARIANCE_RESCALE = 200
+VARIANCE_RESCALE = 400
 REWARD_VSHIFT = 10
 OFF_ROAD_PENALTY = 1000
 TimeStepPenalty = 0.10
+
+MAX_SPEED = 150
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
@@ -262,6 +264,7 @@ class CarRacing(gym.Env, EzPickle):
         self.PENALIZE_OSCILLATIONS = penalize_oscl
 
 
+
         self.contactListener_keepref = FrictionDetector(self, self.lap_complete_percent)
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
         self.screen: Optional[pygame.Surface] = None
@@ -280,43 +283,22 @@ class CarRacing(gym.Env, EzPickle):
             shape=polygonShape(vertices=[(0, 0), (1, 0), (1, -1), (0, -1)])
         )
 
-        # This will throw a warning in tests/envs/test_envs in utils/env_checker.py as the space is not symmetric
-        #   or normalised however this is not possible here so ignore
-        if self.continuous:
-          
-          
-          if self.ACCELERATION_BRAKE:
+        if self.ACCELERATION_BRAKE:
             self.action_space = spaces.Box(
                 np.array([-1, 0, 0]).astype(np.float64),
                 np.array([+1, +1, +1]).astype(np.float64),
                 seed = SEED
             )  # steer, gas, brake
-          
-          else:
+        else:
             self.action_space = spaces.Box(
                 np.array([-1]).astype(np.float64),
                 np.array([+1]).astype(np.float64),
                 seed = SEED
-            )  # steer
-                          
-        else:
-            self.action_space = spaces.Discrete(4)
-            # only steer left and right, and for acceleration: gas, break
+            )  # steer            
 
-        # obseravtion: [error_heading, CTE, Speed]
-        if not self.VARIABLE_SPEED['On']:
-            self.observation_space = spaces.Box(
-                np.array([ -1, -1]).astype(np.float64),
-                np.array([+1, +1]).astype(np.float64), seed = SEED)
-        else:
-            self.observation_space = spaces.Box(
+        self.observation_space = spaces.Box(
                 np.array([ -1, -1, 0]).astype(np.float64),
                 np.array([+1, +1, 1]).astype(np.float64), seed = SEED)
-
-            
-        '''
-            np.array([ -math.pi, -WINDOW_W, -2*self.road_half_width]).astype(np.float64),
-            np.array([+math.pi, +WINDOW_W, +2*self.road_half_width]).astype(np.float64), seed = SEED)'''
         
         self.render_mode = render_mode
 
@@ -634,20 +616,20 @@ class CarRacing(gym.Env, EzPickle):
         self.car.step(1.0 / FPS)
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
-        
-        # the track
-        if self.ACCELERATION_BRAKE:
-            pass
-            #self.reward -= TimeStepPenalty
+
         
         # Updating state
-        #if variable speed is on, add normalized speed as third state
-        if self.VARIABLE_SPEED["On"]:
-            self.state = self.getState()
-        else:
-            self.state = self.getState()[0:2]
+        # if variable speed is on, add normalized speed as third state
+        self.state = self.getState()
 
         self.update_prev_errors(self.state[1])
+
+        if action is not None and self.ACCELERATION_BRAKE:
+            self.reward += action[1]
+
+            if self.state[2] < 0.2:
+                self.reward-=11
+
 
         step_reward = 0
         terminated = False
@@ -656,7 +638,7 @@ class CarRacing(gym.Env, EzPickle):
         if action is not None:  # First step without action, called from reset()
             
             # Penalize oscilations using CTE's variance
-            if self.episode_steps>=NUM_PREV_ERRORS and self.PENALIZE_OSCILLATIONS:
+            if self.episode_steps >= NUM_PREV_ERRORS and self.PENALIZE_OSCILLATIONS:
                 self.reward-= self.get_CTE_variance() * VARIANCE_RESCALE
             
             # Reward low CTE
@@ -984,8 +966,12 @@ class CarRacing(gym.Env, EzPickle):
 
         normalized_CTE = CTE[1] / self.road_half_width
 
-        normalized_speed = ((self.constant_speed - self.VARIABLE_SPEED["min_speed"]) / (
-            self.VARIABLE_SPEED["max_speed"] - self.VARIABLE_SPEED["min_speed"])) * (0.99) + 0.01
+        if self.VARIABLE_SPEED['On']:
+            normalized_speed = ((self.constant_speed - self.VARIABLE_SPEED["min_speed"]) / (
+                self.VARIABLE_SPEED["max_speed"] - self.VARIABLE_SPEED["min_speed"])) * (0.99) + 0.01
+
+        elif self.ACCELERATION_BRAKE:
+            normalized_speed = ((self.car.wheels[3].omega) / MAX_SPEED)* (0.99) + 0.01
 
         return np.array([normalized_error_heading, normalized_CTE, normalized_speed], dtype=np.float64)
     
