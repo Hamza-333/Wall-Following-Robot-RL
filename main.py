@@ -1,16 +1,45 @@
-####### Main loop ##########
-from Actor import Actor
-from Critic import Critic
-from utils import ReplayBuffer
-import torch
 import numpy as np
-import time as t
+import torch
 from TD3 import TD3
+import time
+
+import utils
+from utils import SEED
+
 import gymnasium as gym
-import matplotlib.pyplot as plt
-from env import CarRacing
+import env
+
 import argparse
 
+from env import CarRacing
+import argparse
+import os, csv
+
+MAX_TIME_STEPS = 1000000
+max_episode_steps = 2000
+
+#Options to change expl noise and tau
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.00075}
+
+#load already trained policy
+LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
+
+#Avg reward termination condition
+AVG_REWARD_TERMIN_THRESHOLD = 1900000
+# Time steps below which a standard training iteration param is passed
+MIN_EPS_TIMESTEPS = 500
+
+# Specify the file name
+LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
+if not os.path.exists('./benchmarks/logs/'):
+		os.makedirs('./benchmarks/logs/')
+  
+with open(LOGS_FILEPATH, 'w', newline='') as file:
+	log_writer = csv.writer(file)
+
+	# Write headings
+	log_writer.writerow(['r', 'l'])
 
 
 def evaluate_policy(policy, num_episodes=10):
@@ -31,142 +60,166 @@ def evaluate_policy(policy, num_episodes=10):
     print("----------------------------")
     return avg_reward
 
-def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
-              action_noise, seed):
-    time = 0
-    terminated, truncated = True, True
 
-    # episode vars
-
-    episode_reward = 0
-    episode_timesteps = 0
-    episode_num = 0
-    episode_rewards = []
-    episode_rewards_per_step = []
-    t0 = t.time()
-    time_since_eval = 0
-    evals = []
-    eval_freq = 5000
-    file = "episode-{}"
-    dir = './policies'
-
-    while time < max_time:
-        # considering both terminated and truncated as end of episode
-        if terminated or truncated:
-            print("Episode ended")
-            if time > 0:
-                episode_rewards.append(episode_reward)
-                episode_rewards_per_step.append(episode_reward/episode_timesteps)
-                # print out stats for the episode
-                print("Total Timesteps: {} Episode Num: {} Episode Timesteps: {} Reward: {} Reward Per Step: {}".format(time, episode_num, episode_timesteps, episode_reward, episode_reward/episode_timesteps))
-                
-                # save policy with current stats 
-                # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
-                if time > start_time:
-                    policy.save(file.format(episode_num), dir)
-                
-                # train policy
-                policy.train(episode_timesteps, replay_buffer, batch_size)
-            if time_since_eval >= eval_freq:
-                time_since_eval = 0
-                avg_reward = evaluate_policy(policy)
-                evals.append(avg_reward)
-
-                print("Episode Num: {} Average Reward: {}".format(episode_num, avg_reward))
-                
-                # policy.save("Eval_%d" % (time_since_eval % eval_freq), directory="./")
-                # torch.save(policy.state_dict(), '/content/gdrive/My Drive/episode-{}.pk'.format(episode_num))
-                if time > start_time:
-                    policy.save(file.format(episode_num), dir)
-            # reset env after each episode
-            state = env.reset(seed = seed)
-            terminated, truncated = False, False
-            episode_reward = 0
-            episode_timesteps = 0
-            episode_num += 1 
-
-        # take random actions for first number of timesteps to collect data form env
-        if time < start_time:
-           action = env.action_space.sample()
-
-        else:
-            # now use policy to select action
-            action = policy.select_action(np.array(state))
-            # Add noise to action to allow agent to explore more states
-            # clip between action range
-            action = (action + np.random.normal(0, action_noise, size=env.action_space.shape[0])).clip(env.action_space.low, env.action_space.high)
-
-        # execute action and retreive observations
-            
-        next_state, reward, terminated, truncated, info = env.step(action)    
-
-        term_bool = 0 if episode_timesteps + 1 == 2000 else float(terminated)
-        trunc_bool = 0 if episode_timesteps + 1 == 2000 else float(truncated)
-        # if time % 100 == 0:
-        #     print("State: ", state)
-        #     print("Next State: ", next_state)
-        #     print("Action: ", action)
-        #     print("Reward: ", reward)
-        episode_reward += reward
-
-        # add experience to the replay_buffer
-        replay_buffer.add(state, next_state, action, reward, terminated or truncated)
-        
-        state = next_state
-        episode_timesteps += 1
-        time_since_eval += 1
-        time += 1
-
-    avg_reward = evaluate_policy(policy)
-    evals.append(avg_reward)
-    policy.save("final_policy", dir)
-    # torch.save(policy.state_dict(), '/content/gdrive/My Drive/final-policy.pk')
-    # plot episode rewards
-    plt.plot([i for i in range(len(episode_rewards))], episode_rewards)
-    plt.xlabel = "Episode number"
-    plt.ylabel = "Episode reward"
-    plt.show()
-    # plot evaluations 
-    plt.plot([i for i in range(len(evals))], evals)
-    plt.xlabel = "Evaluation number"
-    plt.ylabel = "Average reward"
-    plt.show()
-
-    plt.plot([i for i in range(len(episode_rewards_per_step))], episode_rewards_per_step)
-    plt.xlabel = "Episode number"
-    plt.ylabel = "Average reward per step"
-    plt.show()
 
 if __name__ == "__main__":
-    # env = gym.make("CarRacing-v2", continuous=True, render_mode=None)
 
-    parser = argparse.ArgumentParser(description='Settings for env')
+	parser = argparse.ArgumentParser(description='Settings for env')
 
-    parser.add_argument("--var_speed", default=False)					
-    parser.add_argument("--accel_brake", default=False)
-    parser.add_argument("--render_mode", default=None)
-    args = parser.parse_args()
+	parser.add_argument("--var_speed", default=False)					
+	parser.add_argument("--accel_brake", default=False)
+	parser.add_argument("--render_mode", default=None)
+	args = parser.parse_args()
 
-    env = CarRacing(render_mode=args.render_mode, var_speed=args.var_speed, accel_brake = args.accel_brake)
-    seed = 0
+                
+	start_timesteps = 1e3           	# How many time steps purely random policy is run for
+	eval_freq = 1e4			             # How often (time steps) we evaluate
+	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
+	save_models = True			    	# Whether or not models are saved
 
-    torch.manual_seed(seed)
-    np.random.seed(seed)
+	expl_noise=0.01		                # Std of Gaussian exploration noise
+	batch_size=256		                # Batch size for both actor and critic
+	tau=0.001		                    # Target network update rate
+	policy_noise=0.1		              # Noise added to target policy during critic update
+	noise_clip=0.25	                  # Range to clip target policy noise
 
-    replay_buffer = ReplayBuffer()
-    action_dim = env.action_space.shape[0]
-    # print(env.action_space.shape[0])
-    state_dim = env.observation_space.shape[0]
 
-    max_action = float(env.action_space.high[0])
+	file_name = "TD3_%s" % ( str(SEED))
+	print("---------------------------------------")
+	print ("Settings: %s" % (file_name))
+	print("---------------------------------------")
 
-    policy = TD3(state_dim, action_dim, max_action)
-    # frequency to evaluate policy
-    eval_freq = 2000
-    batch_size = 100
-    # time to start using policy, before this take random actions
-    start_time = 10000
-    max_time = 100000
+	if not os.path.exists("./results"):
+		os.makedirs("./results")
+	if save_models and not os.path.exists("./pytorch_models"):
+		os.makedirs("./pytorch_models")
 
-    action_noise = 0.2
-    run_train(policy, env, replay_buffer, max_time, batch_size, start_time, action_noise, seed)
+	env = CarRacing(render_mode=args.render_mode, var_speed=args.var_speed, accel_brake = args.accel_brake)
+	
+	#Counter to track finished episode within one iteration of parallel runs
+	num_fin_episodes = 0
+
+	# Set seeds
+	torch.manual_seed(SEED)
+	np.random.seed(SEED)
+	
+	state_dim = env.observation_space.shape[0]
+	action_dim = env.action_space.shape[0] 
+	max_action = float(env.action_space.high[0])
+
+	# Initialize policy
+	policy = TD3(state_dim, action_dim, max_action, policy_noise=policy_noise, noise_clip=noise_clip)
+
+	# Load already trained policy
+	if LOAD_POLICY["On"]:
+		filename = "Policy_19(1)"
+		directory = "./policies"
+		policy.load(filename, directory)
+		start_timesteps = 0
+	
+	# Init replay buffer
+	replay_buffer = utils.ReplayBuffer()
+	
+	# Evaluate untrained policy
+	evaluations = []#evaluations = [evaluate_policy(policy)] 
+
+	total_timesteps = 0
+	timesteps_since_eval = 0
+	train_iteration = 0
+
+	t0 = time.time()
+	done = True
+
+	while total_timesteps < max_timesteps:
+		
+		if done: 
+
+			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
+				
+				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d  Reward: %f   --  Wallclk T: %d sec" % \
+					(total_timesteps, train_iteration, episode_timesteps, reward, int(time.time() - t0)))
+				
+				# Store metrics
+				with open(LOGS_FILEPATH, 'a', newline='') as file:
+					log_writer = csv.writer(file)
+					log_writer.writerow([reward, episode_timesteps])
+
+				if reward >= AVG_REWARD_TERMIN_THRESHOLD:
+					print("\n\nAvg Reward Threshold Met -- Training Terminated\n")
+					break
+					
+				# Lower learning rate 
+				if LOWER_TAU["On"] and reward >= LOWER_TAU["Reward_Threshold"] and total_timesteps>=LOWER_TAU["Timesteps_Threshold"]:
+					tau = LOWER_TAU["Value"]
+					print("\n-------Lowered Tau to %f \n" % LOWER_TAU["Value"])
+					LOWER_TAU["On"] = False
+
+                # Lower exploration noise 
+				if LOWER_EXPL_NOISE["On"] and reward >= LOWER_EXPL_NOISE["Reward_Threshold"]:
+					expl_noise = LOWER_EXPL_NOISE["Value"]
+					print("\n-------Lowered expl noise to %f \n" % LOWER_EXPL_NOISE["Value"])
+					LOWER_EXPL_NOISE["On"] = False
+
+				# save each policy with above stats before training
+				policy.save("Policy_%d" % (train_iteration), directory="./policies")
+
+				print("\nTraining: ", end=" ")
+				if episode_timesteps < MIN_EPS_TIMESTEPS:
+					print("STANDARDIZED TRAINING ITERATIONS")
+					policy.train(MIN_EPS_TIMESTEPS, replay_buffer, tau, batch_size)
+				else:
+					policy.train(episode_timesteps, replay_buffer, tau, batch_size)
+				
+				print("-Finished ")
+				print("\n-----------------------")
+			
+			# Evaluate episode
+			if timesteps_since_eval >= eval_freq:
+				timesteps_since_eval %= eval_freq
+				eval_score = evaluate_policy(policy)
+				evaluations.append(eval_score)
+
+				if save_models: policy.save(file_name, directory="./pytorch_models")
+				np.save("./results/%s" % (file_name), evaluations) 
+			
+			# Reset environment
+			print("\nCollecting data:")
+			
+			obs, info = env.reset(seed=SEED)
+
+			episode_timesteps = 0
+			train_iteration += 1 
+			
+			max_reward = None
+			
+		# Select action randomly or according to policy
+		if total_timesteps == start_timesteps:
+			print("\n\n\nPolicy actions started\n\n\n")
+
+		if total_timesteps < start_timesteps:
+			# Random actions for each environment
+			action = env.action_space.sample()
+		else:
+			action = policy.select_action(obs)
+			
+			if expl_noise != 0: 
+				action = (action + np.random.normal(0, expl_noise, size=env.action_space.shape[0])).clip(env.action_space.low, env.action_space.high)
+
+		# Perform action
+		new_obs, reward, done, truncated, info = env.step(action)
+		
+		replay_buffer.add(obs, new_obs, action, reward, float(done))
+		
+		obs = new_obs
+		
+        #   Episode time_steps for all episodes in each environment
+		episode_timesteps += 1
+		total_timesteps += 1
+		timesteps_since_eval += 1
+
+	# Final evaluation 
+	evaluations.append(evaluate_policy(policy))
+	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
+	np.save("./results/%s" % (file_name), evaluations) 
+
+	env.close()
