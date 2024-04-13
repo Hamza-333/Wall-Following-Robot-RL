@@ -11,6 +11,8 @@ import csv
 import gymnasium as gym
 import env
 
+import argparse
+
 MAX_TIME_STEPS = 1000000
 max_episode_steps = 2000
 
@@ -19,7 +21,7 @@ FIN_EPISODES_BEFORE_TRAIN = 4
 
 #Options to change expl noise and tau
 LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Value': 0.0005}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.00075}
 
 #load already trained policy
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
@@ -68,6 +70,14 @@ def evaluate_policy(policy, eval_episodes=5):
 	return avg
 
 if __name__ == "__main__":
+
+	parser = argparse.ArgumentParser(description='Settings for env')
+
+	parser.add_argument("--var_speed", default=False)					
+	parser.add_argument("--accel_brake", default=False)
+	parser.add_argument("--render_mode", default=None)
+	args = parser.parse_args()
+
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
 	eval_freq = 1e4			             # How often (time steps) we evaluate
@@ -97,7 +107,7 @@ if __name__ == "__main__":
 	
 	# Initialise vectorized environment
 	num_envs= NUM_PARALLEL_ENVS
-	envs = gym.make_vec(env_id, num_envs=num_envs, render_mode='human')
+	envs = gym.make_vec(env_id, num_envs=num_envs, render_mode=args.render_mode, var_speed=args.var_speed, accel_brake = args.accel_brake)
 	
 	#Counter to track finished episode within one iteration of parallel runs
 	num_fin_episodes = 0
@@ -160,7 +170,7 @@ if __name__ == "__main__":
 					break
 					
 				# Lower learning rate 
-				if LOWER_TAU["On"] and avg_reward >= LOWER_TAU["Reward_Threshold"]:
+				if LOWER_TAU["On"] and avg_reward >= LOWER_TAU["Reward_Threshold"] and total_timesteps>=LOWER_TAU["Timesteps_Threshold"]:
 					print("\n-------Lowered Tau to %f \n" % LOWER_TAU["Value"])
 					LOWER_TAU["On"] = False
 
@@ -221,7 +231,8 @@ if __name__ == "__main__":
 				action = (action + np.random.normal(0, expl_noise, size=envs.single_action_space.shape[0])).clip(envs.single_action_space.low, envs.single_action_space.high)
 
 		# Perform action
-		new_obs, reward, done, truncated, info = envs.step(action) 
+		new_obs, reward, done, truncated, info = envs.step(action)
+
 		episode_reward += reward
         
 		# when an episode ends in any environment

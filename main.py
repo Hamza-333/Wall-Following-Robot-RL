@@ -9,6 +9,7 @@ from TD3 import TD3
 import gymnasium as gym
 import matplotlib.pyplot as plt
 from env import CarRacing
+import argparse
 
 
 
@@ -138,7 +139,15 @@ def run_train(policy, env, replay_buffer, max_time, batch_size, start_time, \
 
 if __name__ == "__main__":
     # env = gym.make("CarRacing-v2", continuous=True, render_mode=None)
-    env = CarRacing(continuous=True, render_mode='human')
+
+    parser = argparse.ArgumentParser(description='Settings for env')
+
+    parser.add_argument("--var_speed", default=False)					
+    parser.add_argument("--accel_brake", default=False)
+    parser.add_argument("--render_mode", default=None)
+    args = parser.parse_args()
+
+    env = CarRacing(render_mode=args.render_mode, var_speed=args.var_speed, accel_brake = args.accel_brake)
     seed = 0
 
     torch.manual_seed(seed)

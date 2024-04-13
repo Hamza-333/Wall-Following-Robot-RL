@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
-PPO_TRAIN_TIME_STEPS = 2000
+PPO_TRAIN_TIME_STEPS = 100
 DDPG_TRAIN_TIME_STEPS = 10000
 SAC_TRAIN_TIME_STEPS = 2000
 
