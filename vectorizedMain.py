@@ -20,7 +20,7 @@ NUM_PARALLEL_ENVS = 3
 FIN_EPISODES_BEFORE_TRAIN = 4
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
 LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.00075}
 
 #load already trained policy
