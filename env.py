@@ -64,7 +64,8 @@ NUM_PREV_ERRORS = 20
 # Reward constants
 VARIANCE_RESCALE = 200
 REWARD_VSHIFT = 10
-OFF_ROAD_PENALTY = -1000
+OFF_ROAD_PENALTY = 1000
+TimeStepPenalty = 0.10
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
@@ -102,7 +103,7 @@ class FrictionDetector(contactListener):
             obj.tiles.add(tile)
             if not tile.road_visited:
                 tile.road_visited = True
-                self.env.reward += 0 #/ len(self.env.track)
+                self.env.reward += 1000/ len(self.env.track)
                 self.env.tile_visited_count += 1
 
                 # Lap is considered completed if enough % of the track was covered
@@ -630,21 +631,12 @@ class CarRacing(gym.Env, EzPickle):
         self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.t += 1.0 / FPS
 
-        if self.prevPos is not None:
-   
-            currPos =  self.car.hull.position
-            
-            # calculate projected distance on the line in the middle of 
-            # the track
-            if self.ACCELERATION_BRAKE:
-                print(currPos, self.prevPos)
-                dist = math.dist(currPos, self.prevPos)
-                error_heading = self.get_cross_track_error(self.car, self.track)[0]
-                proj_distance  = dist * math.cos(error_heading)
-                self.reward += abs(proj_distance)
-                self.placeholder = abs(proj_distance)
-                print( abs(proj_distance))
-                self.reward -= 0.1
+        
+        
+        # calculate projected distance on the line in the middle of 
+        # the track
+        if self.ACCELERATION_BRAKE:
+            self.reward -= TimeStepPenalty
         
         # Updating state
 
@@ -680,7 +672,7 @@ class CarRacing(gym.Env, EzPickle):
                 truncated = True
 
             if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width:
-                step_reward = OFF_ROAD_PENALTY
+                step_reward = -OFF_ROAD_PENALTY
                 terminated = True
                 
             # End episode when car goes off road
