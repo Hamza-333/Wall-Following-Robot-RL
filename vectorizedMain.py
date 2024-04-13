@@ -20,14 +20,14 @@ NUM_PARALLEL_ENVS = 3
 FIN_EPISODES_BEFORE_TRAIN = 4
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.001}
 LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.00075}
 
 #load already trained policy
-LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
+LOAD_POLICY = {"On": False, 'init_time_steps': 1e4, 'Policy': 19 }
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 1900000
+AVG_REWARD_TERMIN_THRESHOLD = 19500
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -73,7 +73,8 @@ if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser(description='Settings for env')
 
-	parser.add_argument("--var_speed", default=False)					
+	parser.add_argument("--penalize_oscl", default=True)
+	parser.add_argument("--var_speed", default=False)		
 	parser.add_argument("--accel_brake", default=False)
 	parser.add_argument("--render_mode", default=None)
 	args = parser.parse_args()
@@ -91,7 +92,7 @@ if __name__ == "__main__":
 	noise_clip=0.25	                  # Range to clip target policy noise
 
 
-	file_name = "TD3_%s" % ( str(SEED))
+	file_name = "TD3_%s" % (str(SEED))
 	print("---------------------------------------")
 	print ("Settings: %s" % (file_name))
 	print("---------------------------------------")
@@ -107,7 +108,14 @@ if __name__ == "__main__":
 	
 	# Initialise vectorized environment
 	num_envs= NUM_PARALLEL_ENVS
-	envs = gym.make_vec(env_id, num_envs=num_envs, render_mode=args.render_mode, var_speed=args.var_speed, accel_brake = args.accel_brake)
+	envs = gym.make_vec(
+		env_id, 								# env id for custom registered env
+		num_envs=num_envs, 						# num parallel env for vectorization 
+		render_mode=args.render_mode,			# render pygame display option
+		var_speed=args.var_speed,				# train for variable speeds
+		accel_brake = args.accel_brake,			# train for acceleration and brake
+		penalize_oscl = args.penalize_oscl			# penalize oscilations
+		)
 	
 	#Counter to track finished episode within one iteration of parallel runs
 	num_fin_episodes = 0
@@ -116,6 +124,7 @@ if __name__ == "__main__":
 	torch.manual_seed(SEED)
 	np.random.seed(SEED)
 	
+	# State dimension for individual(single) environments
 	state_dim = envs.single_observation_space.shape[0]
 	action_dim = envs.single_action_space.shape[0] 
 	max_action = float(envs.single_action_space.high[0])
@@ -125,7 +134,7 @@ if __name__ == "__main__":
 
 	# Load already trained policy
 	if LOAD_POLICY["On"]:
-		filename = "Policy_19(1)"
+		filename = "Policy_" + str(LOAD_POLICY["Policy"])
 		directory = "./policies"
 		policy.load(filename, directory)
 		start_timesteps = 0
@@ -136,13 +145,16 @@ if __name__ == "__main__":
 	# Evaluate untrained policy
 	evaluations = []#evaluations = [evaluate_policy(policy)] 
 
+	# Init counters
 	total_timesteps = 0
 	timesteps_since_eval = 0
 	train_iteration = 0
+	eval_count = 0
 	
-	# array to track if the frist episode in all parallel env have ended 
+	# array to track if the frist episode in each parallel env have ended 
 	all_done = np.full(num_envs, True, dtype=bool)
 	
+	# For each train iteration
 	episode_count = 0
 	avg_reward = 0
 
@@ -150,11 +162,14 @@ if __name__ == "__main__":
 
 	while total_timesteps < max_timesteps:
 		
+		# all_done: When the first three episodes in each environment have finished 
 		if all_done.all(): 
 			
 			# calculate average reward over episodes
 			if num_fin_episodes!=0: avg_reward /= num_fin_episodes
 
+			### Training after all_done as defined ###
+			###########################################
 			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
 				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f   --  Wallclk T: %d sec" % \
@@ -165,11 +180,12 @@ if __name__ == "__main__":
 					log_writer = csv.writer(file)
 					log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
 
+				# End learning condtion
 				if avg_reward >= AVG_REWARD_TERMIN_THRESHOLD:
 					print("\n\nAvg Reward Threshold Met -- Training Terminated\n")
 					break
 					
-				# Lower learning rate 
+				# Lower Tau
 				if LOWER_TAU["On"] and avg_reward >= LOWER_TAU["Reward_Threshold"] and total_timesteps>=LOWER_TAU["Timesteps_Threshold"]:
 					tau = LOWER_TAU["Value"]
 					print("\n-------Lowered Tau to %f \n" % LOWER_TAU["Value"])
@@ -185,11 +201,15 @@ if __name__ == "__main__":
 				policy.save("Policy_%d" % (train_iteration), directory="./policies")
 
 				print("\nTraining: ", end=" ")
+
+				# Conditional to pass standardized training iterations to train function
 				if episode_timesteps < MIN_EPS_TIMESTEPS:
 					print("STANDARDIZED TRAINING ITERATIONS")
 					policy.train(MIN_EPS_TIMESTEPS, replay_buffer, tau, batch_size)
 				else:
 					policy.train(episode_timesteps, replay_buffer, tau, batch_size)
+				
+				train_iteration += 1 
 				
 				print("-Finished ")
 				print("\n-----------------------")
@@ -200,21 +220,29 @@ if __name__ == "__main__":
 				eval_score = evaluate_policy(policy)
 				evaluations.append(eval_score)
 
-				if save_models: policy.save(file_name, directory="./pytorch_models")
+				# Saving evaluated policy as TD3_0
+				if save_models: policy.save(file_name + str(eval_count), directory="./pytorch_models")
 				np.save("./results/%s" % (file_name), evaluations) 
+
+				eval_count+=1
 			
-			# Reset environment
+
+			### Reseting environment and var for new data collection iteration ###
+   			######################################################################
+   
 			print("\nCollecting data:")
 			
+			# Reseting environment
 			obs, info = envs.reset(seed=[SEED + i for i in range(num_envs)])
 			SEED+=num_envs
-
+			
+			# Reseting flags/var
 			all_done = np.full(num_envs, False, dtype=bool)
 			finished = np.full(num_envs, False, dtype=bool)
 			episode_reward = np.zeros(num_envs, dtype=float)
-			episode_timesteps = 0
-			train_iteration += 1 
 			
+			# Reseting counters
+			episode_timesteps = 0
 			max_reward = None
 			avg_reward = 0
 			num_fin_episodes = 0
@@ -228,23 +256,31 @@ if __name__ == "__main__":
 			# Random actions for each environment
 			action = envs.action_space.sample()
 		else:
+			# Note: for vectorized env a new select_action function was implemented in TD3
 			action = policy.select_vectorized_action(obs)
 			
+			# Adding exploraiton noise to action(vector)
 			if expl_noise != 0: 
 				action = (action + np.random.normal(0, expl_noise, size=envs.single_action_space.shape[0])).clip(envs.single_action_space.low, envs.single_action_space.high)
 
-		# Perform action
+		# Perform action: step function returns vectors
 		new_obs, reward, done, truncated, info = envs.step(action)
 
 		episode_reward += reward
         
-		# when an episode ends in any environment
+		# Episode ends in a environment(s)
 		if info.keys():
 			
+			# bool vector marking envs with finished episodes
 			finished = info['_final_observation']
+
+			# current number of finished environments
 			num_fin = np.count_nonzero(finished)
 			
+			# total number of finsihed envs
 			num_fin_episodes += num_fin
+
+			# number of finished episodes in current data collection iteration
 			episode_count += num_fin
 			
             # all_done marks the environments whose episodes ended
@@ -252,35 +288,35 @@ if __name__ == "__main__":
 			
 			print("Episode %d reward for finished enviroments:" % episode_count, episode_reward[finished])
 
-            #Set min reward among finished episodes
+            # Set best reward / max reward among finished episodes
 			if max_reward is not None:
 				max_reward = max(max_reward, max(episode_reward[finished]))
 			else:
 				max_reward = max(episode_reward[finished])
 
+			# cumulative sum for eventual avg calculation at the end of data collection
 			avg_reward += sum(episode_reward[finished])
 			
-			#set episode reward for respective environments 0
+			#set episode reward for respective environments in the episode_reward vector to 0
 			episode_reward[finished] = 0
 
-		done_bool = np.full(num_envs, False, dtype=bool) if episode_timesteps + 1 == max_episode_steps else all_done
-		
-		# Store data in replay buffer
+
+		# Store data in replay buffer flattening the obtained vectors into the replay buffer
 		for i in range(num_envs):
 			if info.keys() and info['_final_observation'][i] == True:
-				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], float(finished[i]))
-				print("env %d: " % i, finished[i])
+				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], 1)
 			else:
 				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], 0)
 
+		# Store new obs as obs before action is taken
 		obs = new_obs
 
-        #   Episode time_steps for all episodes in each environment
+        # Episode time_steps counted with consideration of all paralel environments
 		episode_timesteps += num_envs
 		total_timesteps += num_envs
 		timesteps_since_eval += num_envs
 
-	# Final evaluation 
+	# Final evaluation after termination of learning
 	evaluations.append(evaluate_policy(policy))
 	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
 	np.save("./results/%s" % (file_name), evaluations) 
