@@ -171,12 +171,13 @@ if __name__ == "__main__":
 					
 				# Lower learning rate 
 				if LOWER_TAU["On"] and avg_reward >= LOWER_TAU["Reward_Threshold"] and total_timesteps>=LOWER_TAU["Timesteps_Threshold"]:
+					tau = LOWER_TAU["Value"]
 					print("\n-------Lowered Tau to %f \n" % LOWER_TAU["Value"])
 					LOWER_TAU["On"] = False
 
                 # Lower exploration noise 
 				if LOWER_EXPL_NOISE["On"] and avg_reward >= LOWER_EXPL_NOISE["Reward_Threshold"]:
-					expl_noise = expl_noise / 2
+					expl_noise = LOWER_EXPL_NOISE["Value"]
 					print("\n-------Lowered expl noise to %f \n" % LOWER_EXPL_NOISE["Value"])
 					LOWER_EXPL_NOISE["On"] = False
 
@@ -209,6 +210,7 @@ if __name__ == "__main__":
 			SEED+=num_envs
 
 			all_done = np.full(num_envs, False, dtype=bool)
+			finished = np.full(num_envs, False, dtype=bool)
 			episode_reward = np.zeros(num_envs, dtype=float)
 			episode_timesteps = 0
 			train_iteration += 1 
@@ -216,6 +218,7 @@ if __name__ == "__main__":
 			max_reward = None
 			avg_reward = 0
 			num_fin_episodes = 0
+
 		
 		# Select action randomly or according to policy
 		if total_timesteps == start_timesteps:
@@ -265,9 +268,10 @@ if __name__ == "__main__":
 		# Store data in replay buffer
 		for i in range(num_envs):
 			if info.keys() and info['_final_observation'][i] == True:
-				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], float(all_done[i]))
+				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], float(finished[i]))
+				print("env %d: " % i, finished[i])
 			else:
-				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], float(all_done[i]))
+				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], 0)
 
 		obs = new_obs
 
