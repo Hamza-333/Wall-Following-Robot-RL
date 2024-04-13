@@ -186,9 +186,9 @@ if __name__ == "__main__":
 					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, int(time.time() - t0)))
 				
 				# Store metrics
-				with open(LOGS_FILEPATH, 'a', newline='') as file:
-					log_writer = csv.writer(file)
-					log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
+				# with open(LOGS_FILEPATH, 'a', newline='') as file:
+				# 	log_writer = csv.writer(file)
+				# 	log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
 
 				# End learning condtion
 				if avg_reward >= AVG_REWARD_TERMIN_THRESHOLD:
@@ -307,7 +307,7 @@ if __name__ == "__main__":
 
 			# cumulative sum for eventual avg calculation at the end of data collection
 			avg_reward += sum(episode_reward[finished])
-			
+			tmp_reward = episode_reward.copy()
 			#set episode reward for respective environments in the episode_reward vector to 0
 			episode_reward[finished] = 0
 
@@ -320,6 +320,9 @@ if __name__ == "__main__":
 		for i in range(num_envs):
 			if '_final_observation' in info.keys() and info['_final_observation'][i] == True:
 				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], 1)
+				with open(LOGS_FILEPATH, 'a', newline='') as file:
+					log_writer = csv.writer(file)
+					log_writer.writerow([tmp_reward[i], episode_timesteps//num_envs])
 			else:
 				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], 0)
 
