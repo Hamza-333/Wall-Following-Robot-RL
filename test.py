@@ -6,8 +6,8 @@ import argparse
 
 #process file input
 parser = argparse.ArgumentParser(description='Settings for env')
-parser.add_argument("--load_policy", default=None)
-parser.add_argument("--load_model", default="10")
+parser.add_argument("--load_policy", default="10")
+parser.add_argument("--load_model", default=None)
 args = parser.parse_args()
 
 #Init env 
