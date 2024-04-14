@@ -68,7 +68,7 @@ VARIANCE_RESCALE = 200
 REWARD_VSHIFT = 10
 OFF_ROAD_PENALTY = 1000
 
-MAX_SPEED = 150
+MAX_SPEED = 120
 
 '''https://www.desmos.com/calculator/dtotkkusih'''
 
@@ -260,7 +260,7 @@ class CarRacing(gym.Env, EzPickle):
 
         self.VARIABLE_SPEED = {"On" : var_speed, "min_speed": 10, "max_speed": 80}
 
-        self.ACCELERATION_BRAKE = accel_brake
+        self.ACCELERATION_BRAKE = True
 
         self.PENALIZE_OSCILLATIONS = penalize_oscl
 
@@ -638,7 +638,7 @@ class CarRacing(gym.Env, EzPickle):
         if action is not None and self.ACCELERATION_BRAKE:
             self.reward += action[1]
 
-            if self.state[2] < 0.2:
+            if self.state[2] < 1:
                 self.reward-=11
 
 
