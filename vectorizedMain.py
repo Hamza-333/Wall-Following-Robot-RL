@@ -26,7 +26,7 @@ LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 1000
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-TERMIN_THRESHOLD = {"reward": 63, "timesteps": 35000}
+TERMIN_THRESHOLD = {"reward": 63, "timesteps": 45000}
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -88,12 +88,16 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Settings for env')
 
 	parser.add_argument("--penalize_oscl", default=True)
+	parser.add_argument("--timestp_thr", default=None)
 	parser.add_argument("--var_speed", default=False)		
 	parser.add_argument("--accel_brake", default=False)
 	parser.add_argument("--render_mode", default="human")
 	parser.add_argument("--load_policy", default=None)
 	parser.add_argument("--load_model", default=None)
 	args = parser.parse_args()
+
+	if args.timestp_thr is not None:
+		TERMIN_THRESHOLD["timesteps"] = int(args.timestp_thr)
 
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
@@ -299,7 +303,7 @@ if __name__ == "__main__":
 		episode_reward += reward
 
 		#updating avg CTE 
-		avg_CTE+= sum([cte[1] for cte in new_obs])
+		avg_CTE+= sum([abs(cte[1]) for cte in new_obs])
         
 		# Episode ends in a environment(s)
 		if '_final_observation' in info.keys():
