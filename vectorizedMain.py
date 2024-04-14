@@ -26,7 +26,7 @@ LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 1000
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-TERMIN_THRESHOLD = {"reward": 63, "timesteps": 10000}
+TERMIN_THRESHOLD = {"reward": 63, "timesteps": 35000}
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -199,7 +199,7 @@ if __name__ == "__main__":
    
 			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
-				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %f  Avg Reward: %f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
+				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %.2f  Avg Reward: %.2f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
 					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, avg_CTE, int(time.time() - t0)))
 				
 				# Store metrics
