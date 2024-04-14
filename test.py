@@ -22,7 +22,7 @@ print(state_dim, action_dim)
 policy = TD3.TD3(state_dim, action_dim, max_action)
 
 #Load policy or model based on input
-if args.policy_num:
+if args.load_policy:
     filename = "Policy_" + str(args.load_policy)
     directory = "./policies"
     policy.load(filename, directory)
