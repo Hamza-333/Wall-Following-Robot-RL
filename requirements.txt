@@ -1,0 +1,7 @@
+numpy<1.24
+torch
+matplotlib
+swig
+gymnasium
+gymnasium[box2d]
+stable-baselines3
