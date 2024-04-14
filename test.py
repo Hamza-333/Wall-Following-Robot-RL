@@ -7,11 +7,11 @@ import argparse
 #process file input
 parser = argparse.ArgumentParser(description='Settings for env')
 parser.add_argument("--load_policy", default=None)
-parser.add_argument("--load_model", default="0")
+parser.add_argument("--load_model", default="10")
 args = parser.parse_args()
 
 #Init env 
-env = CarRacing(render_mode="human", var_speed=False)
+env = CarRacing(render_mode="human")
 state_dim = env.observation_space.shape[0]
 action_dim = env.action_space.shape[0] 
 max_action = float(env.action_space.high[0])

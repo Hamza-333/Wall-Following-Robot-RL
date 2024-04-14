@@ -26,7 +26,7 @@ LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 1000
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 63
+TERMIN_THRESHOLD = {"reward": 63, "timesteps": 10000}
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
 	file_name = "TD3_"
 	print("---------------------------------------")
-	print (" Training ")
+	print ("                 TD3 ")
 	print("---------------------------------------")
 
 	if not os.path.exists("./results"):
@@ -154,11 +154,12 @@ if __name__ == "__main__":
 		filename = "Policy_" + str(args.load_policy)
 		directory = "./policies"
 		policy.load(filename, directory)
+		start_timesteps = 0
 	elif args.load_model is not None:
 		filename = "TD3_" + args.load_model
 		directory = "./pytorch_models"
 		policy.load(filename, directory)
-	start_timesteps = 0
+		start_timesteps = 0
 	
 	# Init replay buffer
 	replay_buffer = utils.ReplayBuffer()
@@ -207,7 +208,7 @@ if __name__ == "__main__":
 				# 	log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
 
 				# End learning condtion
-				if avg_reward_per_tile >= AVG_REWARD_TERMIN_THRESHOLD:
+				if avg_reward_per_tile >= TERMIN_THRESHOLD['reward'] and total_timesteps>=TERMIN_THRESHOLD["timesteps"]:
 					print("\n\nAvg Reward/Tile Threshold Met -- Training Terminated\n")
 					break
 					
