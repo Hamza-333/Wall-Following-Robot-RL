@@ -19,7 +19,7 @@ max_episode_steps = 2000
 NUM_PARALLEL_ENVS = 3
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.01}
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
 LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.001}
 
 #load already trained policy
@@ -43,30 +43,43 @@ with open(LOGS_FILEPATH, 'w', newline='') as file:
 
 # Runs policy for X episodes and returns average reward
 def evaluate_policy(policy, eval_episodes=5):
-	avg_reward = 0
 	num_fin_episodes = 0
 	obs, info = envs.reset()
-	avg = 0
+	total_reward = 0
+	avg_reward = 0
+	total_timesteps=0
+	cte_list = []
+	
 	while num_fin_episodes < eval_episodes:
 		action = policy.select_vectorized_action(np.array(obs))
-		obs, reward, done, _, info = envs.step(action)
-		avg_reward += reward
+		state, step_reward, done, _, info = envs.step(action)
+		total_reward += step_reward
+		
+		cte_list+= [cte[1] for cte in state]
+
+		total_timesteps+=NUM_PARALLEL_ENVS
 			
         # when an episode ends in any environment
 		if '_final_observation' in info.keys():
 			
 			finished = info['_final_observation']
-			num_fin = np.count_nonzero(finished)
 			
-			num_fin_episodes += num_fin
+			num_fin_episodes +=  np.count_nonzero(finished)
+
+			print(finished)
+			print(num_fin_episodes)
 			
-			avg += np.sum(avg_reward[finished])
+			avg_reward += np.sum(total_reward[finished])
 			
-	avg /= num_fin_episodes
+	avg_reward /= num_fin_episodes
+	avg_CTE = sum(cte_list) * env.ROAD_HALF_WIDTH/ total_timesteps
+	var_cte = np.var(cte_list)
+
 	print("---------------------------------------")
-	print("Evaluation over %d episodes: %f" % (num_fin_episodes, avg))
+	print("Evaluation over %d episodes:" % (num_fin_episodes))
+	print("Avg Reward: %.2f   AVG CTE: %.3f   CTE Variance: %.6f" % (avg_reward, avg_CTE, var_cte))
 	print("---------------------------------------")
-	return avg
+	return avg_reward
 
 if __name__ == "__main__":
 
@@ -86,7 +99,7 @@ if __name__ == "__main__":
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    	# Whether or not models are saved
 
-	expl_noise=0.02	                	# Std of Gaussian exploration noise
+	expl_noise=0.01	                	# Std of Gaussian exploration noise
 	batch_size=256		                # Batch size for both actor and critic
 	tau=0.002	                    	# Target network update rate
 	policy_noise=0.1		            # Noise added to target policy during critic update
@@ -150,7 +163,7 @@ if __name__ == "__main__":
 	replay_buffer = utils.ReplayBuffer()
 	
 	# Evaluate untrained policy
-	evaluations = []#evaluations = [evaluate_policy(policy)] 
+	evaluations = [evaluate_policy(policy)]#evaluations = [evaluate_policy(policy)] 
 
 	# Init counters
 	total_timesteps = 0
@@ -164,6 +177,7 @@ if __name__ == "__main__":
 	# For each train iteration
 	episode_count = 0
 	avg_reward = 0
+	avg_CTE = 0
 
 	t0 = time.time()
 
@@ -176,14 +190,15 @@ if __name__ == "__main__":
 			if num_fin_episodes!=0: 
 				avg_reward /= num_fin_episodes
 				avg_reward_per_tile /= num_fin_episodes
+				avg_CTE /= episode_timesteps / env.ROAD_HALF_WIDTH
 
 			### Training after all_done as defined ###
 			###########################################
    
 			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
-				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f  Avg Reward/Tile: %.2f  --  Wallclk T: %d sec" % \
-					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, int(time.time() - t0)))
+				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %f  Avg Reward: %f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
+					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, avg_CTE, int(time.time() - t0)))
 				
 				# Store metrics
 				# with open(LOGS_FILEPATH, 'a', newline='') as file:
@@ -256,6 +271,7 @@ if __name__ == "__main__":
 			max_reward = None
 			avg_reward = 0
 			avg_reward_per_tile = 0
+			avg_CTE = 0
 			num_fin_episodes = 0
 
 		
@@ -278,6 +294,9 @@ if __name__ == "__main__":
 		new_obs, reward, done, truncated, info = envs.step(action)
 
 		episode_reward += reward
+
+		#updating avg CTE 
+		avg_CTE+= sum([cte[1] for cte in new_obs])
         
 		# Episode ends in a environment(s)
 		if '_final_observation' in info.keys():

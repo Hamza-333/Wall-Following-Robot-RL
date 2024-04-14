@@ -58,11 +58,13 @@ MAX_SHAPE_DIM = (
     max(GRASS_DIM, TRACK_WIDTH, TRACK_DETAIL_STEP) * math.sqrt(2) * ZOOM * SCALE
 )
 
+ROAD_HALF_WIDTH = 7
+
 #Prev errors for CTE variance calc
 NUM_PREV_ERRORS = 20
 
 # Reward constants
-VARIANCE_RESCALE = 400
+VARIANCE_RESCALE = 200
 REWARD_VSHIFT = 10
 OFF_ROAD_PENALTY = 1000
 TimeStepPenalty = 0.10
@@ -252,7 +254,7 @@ class CarRacing(gym.Env, EzPickle):
         self.episode_steps = 0
         self.constant_speed = constant_speed
         self.prev_errors = [0 for _ in range(num_prev_errors)]
-        self.road_half_width = 7
+        self.road_half_width = ROAD_HALF_WIDTH
         self.placeholder = 0
         self.prevPos = None
         self.state = [0,0,0]
@@ -296,6 +298,8 @@ class CarRacing(gym.Env, EzPickle):
                 seed = SEED
             )  # steer            
 
+        # Standard observation space for const speed, var speed and accleration
+        # (Error heading, CTE, Speed)
         self.observation_space = spaces.Box(
                 np.array([ -1, -1, 0]).astype(np.float64),
                 np.array([+1, +1, 1]).astype(np.float64), seed = SEED)
@@ -655,6 +659,7 @@ class CarRacing(gym.Env, EzPickle):
 
             if abs(self.get_cross_track_error(self.car, self.track)[1]) > self.road_half_width:
                 step_reward = -OFF_ROAD_PENALTY
+                self.reward -= OFF_ROAD_PENALTY
                 terminated = True
                 
             # End episode when car goes off road
@@ -966,12 +971,13 @@ class CarRacing(gym.Env, EzPickle):
 
         normalized_CTE = CTE[1] / self.road_half_width
 
-        if self.VARIABLE_SPEED['On']:
+        
+        if self.ACCELERATION_BRAKE:
+            normalized_speed = ((self.car.wheels[3].omega) / MAX_SPEED)* (0.99) + 0.01
+        
+        else:
             normalized_speed = ((self.constant_speed - self.VARIABLE_SPEED["min_speed"]) / (
                 self.VARIABLE_SPEED["max_speed"] - self.VARIABLE_SPEED["min_speed"])) * (0.99) + 0.01
-
-        elif self.ACCELERATION_BRAKE:
-            normalized_speed = ((self.car.wheels[3].omega) / MAX_SPEED)* (0.99) + 0.01
 
         return np.array([normalized_error_heading, normalized_CTE, normalized_speed], dtype=np.float64)
     
