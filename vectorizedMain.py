@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
 	# Final evaluation after termination of learning
 	evaluations.append(evaluate_policy(policy))
-	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
+	if save_models: policy.save("%s" % (file_name + "Final"), directory="./pytorch_models")
 	np.save("./results/%s" % (file_name + "Final"), evaluations) 
 	print("Final model saved as: " + file_name + "Final") 
 	envs.close()
