@@ -69,7 +69,7 @@ def evaluate_policy(policy, eval_episodes=5):
 			avg_reward += np.sum(total_reward[finished])
 
 			#set episode reward for respective environments in the episode_reward vector to 0
-			episode_reward[finished] = 0
+			total_reward[finished] = 0
 			
 	avg_reward /= num_fin_episodes
 	avg_CTE = sum(cte_list) * env.ROAD_HALF_WIDTH / total_timesteps
