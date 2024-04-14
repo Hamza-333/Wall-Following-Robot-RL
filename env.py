@@ -300,9 +300,14 @@ class CarRacing(gym.Env, EzPickle):
 
         # Standard observation space for const speed, var speed and accleration
         # (Error heading, CTE, Speed)
-        self.observation_space = spaces.Box(
-                np.array([ -1, -1, 0]).astype(np.float64),
-                np.array([+1, +1, 1]).astype(np.float64), seed = SEED)
+        if self.VARIABLE_SPEED["On"] or self.ACCELERATION_BRAKE:
+            self.observation_space = spaces.Box(
+                    np.array([ -1, -1, 0]).astype(np.float64),
+                    np.array([+1, +1, 1]).astype(np.float64), seed = SEED)
+        else:
+                self.observation_space = spaces.Box(
+                    np.array([ -1, -1]).astype(np.float64),
+                    np.array([+1, +1]).astype(np.float64), seed = SEED)
         
         self.render_mode = render_mode
 
@@ -624,7 +629,10 @@ class CarRacing(gym.Env, EzPickle):
         
         # Updating state
         # if variable speed is on, add normalized speed as third state
-        self.state = self.getState()
+        if self.VARIABLE_SPEED["On"] or self.ACCELERATION_BRAKE:
+            self.state = self.getState()
+        else:
+            self.state = self.getState()[0:2]
 
         self.update_prev_errors(self.state[1])
 
@@ -734,7 +742,7 @@ class CarRacing(gym.Env, EzPickle):
         ########################################
         
 
-        text = font.render("SR: %.2f | CTE:%.2f" %  (self.placeholder, self.state[1]), True, (255, 255, 255), (0, 0, 0))
+        text = font.render("SR: %.2f | CTE:%.2f" %  (self.placeholder, self.state[1]*self.road_half_width), True, (255, 255, 255), (0, 0, 0))
 
 
         ########################################

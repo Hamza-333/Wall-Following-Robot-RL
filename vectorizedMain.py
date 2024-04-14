@@ -20,13 +20,13 @@ NUM_PARALLEL_ENVS = 3
 
 #Options to change expl noise and tau
 LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.001}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 10000, 'Value': 0.00075}
 
 #load already trained policy
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 19500
+AVG_REWARD_TERMIN_THRESHOLD = 63
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -52,10 +52,10 @@ def evaluate_policy(policy, eval_episodes=5):
 	
 	while num_fin_episodes < eval_episodes:
 		action = policy.select_vectorized_action(np.array(obs))
-		state, step_reward, done, _, info = envs.step(action)
+		obs, step_reward, done, _, info = envs.step(action)
 		total_reward += step_reward
 		
-		cte_list+= [cte[1] for cte in state]
+		cte_list += [cte[1] for cte in obs]
 
 		total_timesteps+=NUM_PARALLEL_ENVS
 			
@@ -65,14 +65,14 @@ def evaluate_policy(policy, eval_episodes=5):
 			finished = info['_final_observation']
 			
 			num_fin_episodes +=  np.count_nonzero(finished)
-
-			print(finished)
-			print(num_fin_episodes)
 			
 			avg_reward += np.sum(total_reward[finished])
+
+			#set episode reward for respective environments in the episode_reward vector to 0
+			episode_reward[finished] = 0
 			
 	avg_reward /= num_fin_episodes
-	avg_CTE = sum(cte_list) * env.ROAD_HALF_WIDTH/ total_timesteps
+	avg_CTE = sum(cte_list) * env.ROAD_HALF_WIDTH / total_timesteps
 	var_cte = np.var(cte_list)
 
 	print("---------------------------------------")
@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
-	eval_freq = 1e4			             # How often (time steps) we evaluate
+	eval_freq = 1e3			             # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    	# Whether or not models are saved
 
@@ -206,8 +206,8 @@ if __name__ == "__main__":
 				# 	log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
 
 				# End learning condtion
-				if avg_reward >= AVG_REWARD_TERMIN_THRESHOLD:
-					print("\n\nAvg Reward Threshold Met -- Training Terminated\n")
+				if avg_reward_per_tile >= AVG_REWARD_TERMIN_THRESHOLD:
+					print("\n\nAvg Reward/Tile Threshold Met -- Training Terminated\n")
 					break
 					
 				# Lower Tau
