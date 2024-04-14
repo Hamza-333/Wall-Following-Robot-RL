@@ -11,7 +11,7 @@ parser.add_argument("--load_model", default="0")
 args = parser.parse_args()
 
 #Init env 
-env = CarRacing(render_mode="human", var_speed=True)
+env = CarRacing(render_mode="human", var_speed=False)
 state_dim = env.observation_space.shape[0]
 action_dim = env.action_space.shape[0] 
 max_action = float(env.action_space.high[0])
@@ -39,7 +39,8 @@ total_reward = 0
 total_reward_per_tile = 0
 cte_list = []
 
-num_sim = 1
+num_sim = 10
+rewards = []
 for i in range(num_sim):
     
     #Simulation loop
@@ -57,7 +58,7 @@ for i in range(num_sim):
 
         # account for total rewards
         total_reward += reward
-        
+        rewards.append(reward)
         if  terminated or truncated:
             # account rewardPerTile
             total_reward_per_tile += info["rewardPerTile"]
@@ -67,12 +68,15 @@ for i in range(num_sim):
 
             done = True
         
-print("Variance of CTE: ", np.var(cte_list)*1000)
+print("Variance of CTE: ", np.var(cte_list))
 
 print("Average reward: ", total_reward / num_sim)
 
+print("Average reward per action: ", np.sum(rewards)/len(rewards))
+
 print("Average tile reward: ", total_reward_per_tile / num_sim)
-    
+
+print("Average CTE: ", np.sum(cte_list)/len(cte_list))
 
 
 
