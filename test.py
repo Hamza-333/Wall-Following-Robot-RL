@@ -6,8 +6,8 @@ import argparse
 
 #process file input
 parser = argparse.ArgumentParser(description='Settings for env')
-parser.add_argument("--policy_num", default=None)
-parser.add_argument("--model_num", default="0")
+parser.add_argument("--load_policy", default=None)
+parser.add_argument("--load_model", default="0")
 args = parser.parse_args()
 
 #Init env 
@@ -23,11 +23,11 @@ policy = TD3.TD3(state_dim, action_dim, max_action)
 
 #Load policy or model based on input
 if args.policy_num:
-    filename = "Policy_" + str(args.policy_num)
+    filename = "Policy_" + str(args.load_policy)
     directory = "./policies"
     policy.load(filename, directory)
 else:
-    filename = "TD3_" + args.model_num
+    filename = "TD3_" + args.load_model
     directory = "./pytorch_models"
     policy.load(filename, directory)
 

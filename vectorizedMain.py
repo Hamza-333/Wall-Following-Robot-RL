@@ -43,6 +43,8 @@ with open(LOGS_FILEPATH, 'w', newline='') as file:
 
 # Runs policy for X episodes and returns average reward
 def evaluate_policy(policy, eval_episodes=5):
+	print("\nEvaluating model")
+
 	num_fin_episodes = 0
 	obs, info = envs.reset()
 	total_reward = 0
@@ -95,7 +97,7 @@ if __name__ == "__main__":
 
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
-	eval_freq = 1e3			             # How often (time steps) we evaluate
+	eval_freq = 1e4			             # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    	# Whether or not models are saved
 
@@ -106,9 +108,9 @@ if __name__ == "__main__":
 	noise_clip=0.25	                  	# Range to clip target policy noise
 
 
-	file_name = "TD3_%s" % (str(SEED))
+	file_name = "TD3_"
 	print("---------------------------------------")
-	print ("Settings: %s" % (file_name))
+	print (" Training ")
 	print("---------------------------------------")
 
 	if not os.path.exists("./results"):
@@ -147,17 +149,16 @@ if __name__ == "__main__":
 	policy = TD3(state_dim, action_dim, max_action, policy_noise=policy_noise, noise_clip=noise_clip)
 
 	# Load already trained policy
-	if LOAD_POLICY["On"]:
-		#Load policy or model based on input
-		if args.load_policy:
-			filename = "Policy_" + str(args.policy_num)
-			directory = "./policies"
-			policy.load(filename, directory)
-		else:
-			filename = "TD3_" + args.model_num
-			directory = "./pytorch_models"
-			policy.load(filename, directory)
-		start_timesteps = 0
+	#Load policy or model based on input
+	if args.load_policy is not None:
+		filename = "Policy_" + str(args.load_policy)
+		directory = "./policies"
+		policy.load(filename, directory)
+	elif args.load_model is not None:
+		filename = "TD3_" + args.load_model
+		directory = "./pytorch_models"
+		policy.load(filename, directory)
+	start_timesteps = 0
 	
 	# Init replay buffer
 	replay_buffer = utils.ReplayBuffer()
@@ -247,7 +248,8 @@ if __name__ == "__main__":
 
 				# Saving evaluated policy as TD3_0
 				if save_models: policy.save(file_name + str(eval_count), directory="./pytorch_models")
-				np.save("./results/%s" % (file_name), evaluations) 
+				np.save("./results/%s" % (file_name), evaluations)
+				print("Evaluated model saved as: " + file_name + str(eval_count)) 
 
 				eval_count+=1
 			
@@ -356,8 +358,8 @@ if __name__ == "__main__":
 	# Final evaluation after termination of learning
 	evaluations.append(evaluate_policy(policy))
 	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
-	np.save("./results/%s" % (file_name), evaluations) 
-
+	np.save("./results/%s" % (file_name + "Final"), evaluations) 
+	print("Final model saved as: " + file_name + "Final") 
 	envs.close()
 
 
