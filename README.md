@@ -58,7 +58,7 @@ python vectorizedMain.py --var_speed=1
 
 By default, the vectorizedMain.py file is set up to run without acceleration (gas and brake) actions and only with the steering action.
 
-If you want to train for acceleration (gas and brake actions) as well, run the file with the following argument
+If you want to train for acceleration (gas and brake) actions as well, run the file with the following argument
 
 ```terminal
 python vectorizedMain.py --accel_brake=1
