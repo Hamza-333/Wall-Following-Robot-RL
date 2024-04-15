@@ -10,7 +10,7 @@ file_name = "TD3_"
 file_name_var = "TD3_VAR_"
 file_name_accl = "TD3_ACCL_"
 
-policies_dir = "./policies/acclPolicies"
+policies_dir = "./policies"
 policies_dir_var_speed = "./policies/varPolicies"
 policies_dir_accl = "./policies/acclPolicies"
 
