@@ -24,6 +24,14 @@ The instructions in the following video were helpful:
 
 https://youtu.be/gMgj4pSHLww?si=asoE1KxlGiYnBwop
 
+## Terminolgy
+
+First note that our implementation the following convention for naming policies was set:
+
+- Policies, stored as "Policy_", are the trained models that correspond to the data stats before each training iteration. These are stored in the './policies' directory.
+
+- Models, stored as "TD3_",  are the evaluated models stored at each evaluation during training and after the final evaluation after training is terminated. They are stored in the directory './pytorch_models'.
+
 
 ## Training
 
@@ -78,20 +86,15 @@ python vectorizedMain.py --penalize_oscl=0
 
 ##
 
-#### Loading a pre-trained model or policy
-
-First note that in this context, policies are the trained models that correspond to the data stats before each training iteration. These are stored in the './policies' directory.
-
-Models are the evaluated models stored at each evaluation during training, and also after the final evaluation after training is terminated.
-
+#### Loading a pre-trained model or policy before training(functionality for curriculum learning)
 
 In our current implementation, please note that this functionality is only supported for the main task: constant speed.
 
 To load a pre-trained model or policy run either of the following as required:
 
-example model: 'TD3_010'
+example model: 'TD3_Final'
 ```terminal
-python vectorizedMain.py --load_model=010
+python vectorizedMain.py --load_model=Final
 ```
 example policy: 'policy_14'
 ```terminal
@@ -100,29 +103,32 @@ python vectorizedMain.py --load_policy=14
 
 ## Testing
 
+# Our best results
 For our best models for the main task, run the following:
 
- 'best1'
+Constant speed:
 ```terminal
 python test.py --load_policy=best1
 ```
- 'best2'
+
 ```terminal
 python test.py --load_policy=best2
 ```
 
 Similarly, for extended tasks, passing these arguments is enough
 
- 'best1'
+Variable speed:
 ```terminal
 python test.py --load_policy=best1 --var_speed=1
+python test.py --load_policy=best2 --var_speed=1
 ```
- 'best2'
+Acceleration:
 ```terminal
+python test.py --load_policy=best1 --accel_brake=1
 python test.py --load_policy=best2 --accel_brake=1
 ```
 
-
+# Testing your own trained polices
 Similar to loading a model or a policy as before, run the following as required for our main task:
 
 example model: 'TD3_010'
@@ -133,7 +139,6 @@ example policy: 'policy_14'
 ```terminal
 python test.py --load_policy=14
 ```
-If no policy is specified, then by default policy 10 will be selected. Currently, the available policies in the repository are policy 10 and policy 14 which gave the best results.
 #
 
 Consider you have just trained the model and simply want to test the final trained model:
