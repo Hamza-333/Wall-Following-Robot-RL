@@ -97,6 +97,30 @@ python vectorizedMain.py --load_policy=14
 
 ## Testing
 
+
+For our best models for the main task, run the following:
+
+ 'best1'
+```terminal
+python test.py --load_policy=best1
+```
+ 'best2'
+```terminal
+python test.py --load_policy=best2
+```
+
+Similarly, for extended tasks, passing these arguments is enough
+
+ 'best1'
+```terminal
+python test.py --load_policy=best1 --var_speed=1
+```
+ 'best2'
+```terminal
+python test.py --load_policy=best2 --accel_brake=1
+```
+
+
 Similar to loading a model or a policy as before, run the following as required for our main task:
 
 example model: 'TD3_010'
@@ -116,14 +140,14 @@ Consider you have just trained the model and simply want to test the final train
 python test.py --load_model=Final
 ```
 
-If you want to test for the extended tasks, pass the pass following arguments along as required:
+If you want to test for the extended tasks, pass the following arguments along as required:
 
-For constant speed:
+For variable speed:
 ```terminal
 --var_speed=1
 ```
 
-For constant speed:
+For acceleration:
 ```terminal
 --accel_brake=1
 ```
@@ -136,6 +160,8 @@ example usage for acceleration policy: 'policy_14'
 ```terminal
 python test.py --load_policy=14 --accel_brake=1
 ```
+
+
 
 ## Evaluating with Benchmarks
 
