@@ -6,7 +6,7 @@ Along with python version >= 3, to ensure the code runs similar to ours, the req
 To install the requirements run:
 
 ```terminal
-pip install -r riquirements.txt
+pip install -r requirements.txt
 ```
 
 It is to be noted that installing gymnasium[box2d] has a known issue where building the wheels fails. This issue is resolved differently depending on your machine type.
