@@ -1,7 +1,7 @@
 # Reinforcement Learning for Robot Path-Following 
 
 ## Dependencies
-Along with python version `>= 3`, to ensure the code runs similar to ours, the requirements in requirements.txt must be installed.
+Along with Python version `>= 3`, to ensure the code runs similarly to ours, the requirements in requirements.txt must be installed.
 
 To install the requirements run:
 
@@ -11,7 +11,7 @@ pip install -r requirements.txt
 
 It is to be noted that installing gymnasium[box2d] has a known issue where building the wheels fails. This issue is resolved differently depending on your machine type.
 
-On our machines the following resolved
+On our machines, the following resolved
 
 #### Mac
 install swig before installing gymnasium[box2d]
@@ -27,12 +27,14 @@ https://youtu.be/gMgj4pSHLww?si=asoE1KxlGiYnBwop
 
 ## Training
 
-To train the model as done in the report, the vectorizedMain.py needs to be run as defined below.
+To train the model as done in the report for our main task, constant speed path following, the vectorizedMain.py needs to be run without any arguments passed to it.
+
+For training the model for the extended tasks, variable constant speed/acceleration, and other settings, the vectorizedMain.py needs to be run as defined below.
 
 
 #### Rendering
 
-The code can be run with or without rendering the environment simulation visually for the training process. Although not rendering may quicken the process, however, as our code is well optimized to not take long anyways, we recommend rendering to see the model learn. 
+The code can be run with or without rendering the environment simulation visually for the training process. Although not rendering may quicken the process, however, as our code is well optimized to not take long anyway, we recommend rendering to see the model learn. 
 
 By default, vectorizedMian.py is set up to render.
 
@@ -82,7 +84,7 @@ First note that in this context, policies are the trained models that correspond
 
 Models are the evaluated models stored at each evaluation during training, and also after the final evaluation after training is terminated.
 
-To load a pretrained model or policy run either of the following as required:
+To load a pre-trained model or policy run either of the following as required:
 
 example model: 'TD3_010'
 ```terminal
@@ -95,7 +97,7 @@ python vectorizedMain.py --load_policy=14
 
 ## Testing
 
-Similar to loading a model or a policy as before, run the following as required:
+Similar to loading a model or a policy as before, run the following as required for our main task:
 
 example model: 'TD3_010'
 ```terminal
@@ -114,12 +116,34 @@ Consider you have just trained the model and simply want to test the final train
 python test.py --load_model=Final
 ```
 
+If you want to test for the extended tasks, pass the pass following arguments along as required:
+
+For constant speed:
+```terminal
+--var_speed=1
+```
+
+For constant speed:
+```terminal
+--accel_brake=1
+```
+
+example usage for variable speed model: 'TD3_VAR_0'
+```terminal
+python test.py --load_model=0 --var_speed=1
+```
+example usage for acceleration policy: 'policy_14'
+```terminal
+python test.py --load_policy=14 --accel_brake=1
+```
+
 ## Evaluating with Benchmarks
 
-For this, simply run the following to get the all the matplotlib plots and evaluations printed in the console.
+For this, simply run the following to get all the matplotlib plots and evaluations printed in the console. 
 
 ```terminal
 python benchmarks.py
 ```
+
 ## Acknowledgements
 - University of Toronto's CSC2626 Assignment 1 repository: https://github.com/florianshkurti/csc2626w22/tree/master/assignments/A1
