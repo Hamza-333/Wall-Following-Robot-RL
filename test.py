@@ -8,10 +8,18 @@ import argparse
 parser = argparse.ArgumentParser(description='Settings for env')
 parser.add_argument("--load_policy", default="10")
 parser.add_argument("--load_model", default=None)
+parser.add_argument("--var_speed", default=False)		
+parser.add_argument("--accel_brake", default=False)	
+
+
 args = parser.parse_args()
 
 #Init env 
-env = CarRacing(render_mode="human")
+env = CarRacing(
+    render_mode="human",
+    var_speed=args.var_speed,					# train for variable speeds
+	accel_brake = args.accel_brake)				# train for acceleration and brake
+
 state_dim = env.observation_space.shape[0]
 action_dim = env.action_space.shape[0] 
 max_action = float(env.action_space.high[0])
@@ -68,7 +76,7 @@ for i in range(num_sim):
 
             done = True
         
-print("Variance of CTE: ", np.var(cte_list))
+print("Variance of CTE: ", np.var(cte_list)) * env.road_half_width
 
 print("Average reward: ", total_reward / num_sim)
 

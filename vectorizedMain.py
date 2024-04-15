@@ -20,7 +20,7 @@ NUM_PARALLEL_ENVS = 3
 
 #Options to change expl noise and tau
 LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 10000, 'Value': 0.00075}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 10000, 'Value': 0.001}
 
 #load already trained policy
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
@@ -30,16 +30,6 @@ TERMIN_THRESHOLD = {"reward": 63, "timesteps": 45000}
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
-# Specify the file name
-LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
-if not os.path.exists('./benchmarks/logs/'):
-		os.makedirs('./benchmarks/logs/')
-  
-with open(LOGS_FILEPATH, 'w', newline='') as file:
-	log_writer = csv.writer(file)
-
-	# Write headings
-	log_writer.writerow(['r', 'l'])
 
 # Runs policy for X episodes and returns average reward
 def evaluate_policy(policy, eval_episodes=5):
@@ -98,10 +88,13 @@ if __name__ == "__main__":
 
 	if args.timestp_thr is not None:
 		TERMIN_THRESHOLD["timesteps"] = int(args.timestp_thr)
-
+	elif args.var_speed:
+		TERMIN_THRESHOLD["timesteps"] = 70
+	elif args.accel_brake:
+		TERMIN_THRESHOLD["timesteps"] = 100
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
-	eval_freq = 1e4			             # How often (time steps) we evaluate
+	eval_freq = 1e4			            # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    	# Whether or not models are saved
 
@@ -112,7 +105,6 @@ if __name__ == "__main__":
 	noise_clip=0.25	                  	# Range to clip target policy noise
 
 
-	file_name = "TD3_"
 	print("---------------------------------------")
 	print ("                 TD3 ")
 	print("---------------------------------------")
@@ -122,6 +114,35 @@ if __name__ == "__main__":
 	if save_models and not os.path.exists("./pytorch_models"):
 		os.makedirs("./pytorch_models")
 
+	# Specify the file name for respective tasks
+	if args.accel_brake:
+		LOGS_FILEPATH = './benchmarks/logs/TD3_log_ACCL.csv'
+		file_name = "TD3_ACCL_"
+
+		if not os.path.exists("./policies/acclPolicies"):
+			os.makedirs("./policies/acclPolicies")
+
+	elif args.var_speed:
+		LOGS_FILEPATH = './benchmarks/logs/TD3_log_VAR.csv'
+		file_name = "TD3_VAR_"
+
+		if not os.path.exists("./policies/varPolicies"):
+			os.makedirs("./policies/varPolicies")
+
+	else:
+		LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
+		file_name = "TD3_"
+		
+	if not os.path.exists('./benchmarks/logs/'):
+			os.makedirs('./benchmarks/logs/')
+	
+	with open(LOGS_FILEPATH, 'w', newline='') as file:
+		log_writer = csv.writer(file)
+
+		# Write headings
+		log_writer.writerow(['r', 'l'])
+
+	
 	# Register environment
 	env_id  = 'center_maintaining'
 	env.registerEnv(env_id)
@@ -134,7 +155,7 @@ if __name__ == "__main__":
 		render_mode=args.render_mode,				# render pygame display option
 		var_speed=args.var_speed,					# train for variable speeds
 		accel_brake = args.accel_brake,				# train for acceleration and brake
-		penalize_oscl = int(args.penalize_oscl)	# penalize oscilations
+		penalize_oscl = int(args.penalize_oscl)		# penalize oscilations
 		)
 	
 	#Counter to track finished episode within one iteration of parallel runs
@@ -200,7 +221,6 @@ if __name__ == "__main__":
 
 			### Training after all_done as defined ###
 			###########################################
-   
 			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
 				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %.2f  Avg Reward: %.2f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
@@ -229,6 +249,12 @@ if __name__ == "__main__":
 					LOWER_EXPL_NOISE["On"] = False
 
 				# save each policy with above stats before training
+				Directory = "./policies"
+				if args.accel_brake:
+					Directory = "./policies/acclPolicies"
+				elif args.var_speed:
+					Directory = "./policies/varPolicies"
+
 				policy.save("Policy_%d" % (train_iteration), directory="./policies")
 
 				print("\nTraining: ", end=" ")
@@ -261,7 +287,6 @@ if __name__ == "__main__":
 
 			### Reseting environment and var for new data collection iteration ###
    			######################################################################
-   
 			print("\nCollecting data:")
 			
 			# Reseting environment
@@ -281,7 +306,6 @@ if __name__ == "__main__":
 			avg_CTE = 0
 			num_fin_episodes = 0
 
-		
 		# Select action randomly or according to policy
 		if total_timesteps == start_timesteps:
 			print("\n\n\nPolicy actions started\n\n\n")
