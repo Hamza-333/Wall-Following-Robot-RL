@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 from TD3 import TD3
@@ -19,14 +18,14 @@ max_episode_steps = 2000
 NUM_PARALLEL_ENVS = 3
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 10000, 'Value': 0.00075}
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.01}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.001}
 
 #load already trained policy
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 63
+AVG_REWARD_TERMIN_THRESHOLD = 19500
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
@@ -43,45 +42,30 @@ with open(LOGS_FILEPATH, 'w', newline='') as file:
 
 # Runs policy for X episodes and returns average reward
 def evaluate_policy(policy, eval_episodes=5):
-	print("\nEvaluating model")
-
+	avg_reward = 0
 	num_fin_episodes = 0
 	obs, info = envs.reset()
-	total_reward = 0
-	avg_reward = 0
-	total_timesteps=0
-	cte_list = []
-	
+	avg = 0
 	while num_fin_episodes < eval_episodes:
 		action = policy.select_vectorized_action(np.array(obs))
-		obs, step_reward, done, _, info = envs.step(action)
-		total_reward += step_reward
-		
-		cte_list += [cte[1] for cte in obs]
-
-		total_timesteps+=NUM_PARALLEL_ENVS
+		obs, reward, done, _, info = envs.step(action)
+		avg_reward += reward
 			
         # when an episode ends in any environment
 		if '_final_observation' in info.keys():
 			
 			finished = info['_final_observation']
+			num_fin = np.count_nonzero(finished)
 			
-			num_fin_episodes +=  np.count_nonzero(finished)
+			num_fin_episodes += num_fin
 			
-			avg_reward += np.sum(total_reward[finished])
-
-			#set episode reward for respective environments in the episode_reward vector to 0
-			total_reward[finished] = 0
+			avg += np.sum(avg_reward[finished])
 			
-	avg_reward /= num_fin_episodes
-	avg_CTE = sum(cte_list) * env.ROAD_HALF_WIDTH / total_timesteps
-	var_cte = np.var(cte_list)
-
+	avg /= num_fin_episodes
 	print("---------------------------------------")
-	print("Evaluation over %d episodes:" % (num_fin_episodes))
-	print("Avg Reward: %.2f   AVG CTE: %.3f   CTE Variance: %.6f" % (avg_reward, avg_CTE, var_cte))
+	print("Evaluation over %d episodes: %f" % (num_fin_episodes, avg))
 	print("---------------------------------------")
-	return avg_reward
+	return avg
 
 if __name__ == "__main__":
 
@@ -94,23 +78,24 @@ if __name__ == "__main__":
 	parser.add_argument("--load_policy", default=None)
 	parser.add_argument("--load_model", default=None)
 	args = parser.parse_args()
-
+	if  args.accel_brake:
+		max_episode_steps = 1000
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
 	eval_freq = 1e4			             # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    	# Whether or not models are saved
 
-	expl_noise=0.01	                	# Std of Gaussian exploration noise
+	expl_noise=0.02	                	# Std of Gaussian exploration noise
 	batch_size=256		                # Batch size for both actor and critic
 	tau=0.002	                    	# Target network update rate
 	policy_noise=0.1		            # Noise added to target policy during critic update
 	noise_clip=0.25	                  	# Range to clip target policy noise
 
 
-	file_name = "TD3_"
+	file_name = "TD3_%s" % (str(SEED))
 	print("---------------------------------------")
-	print (" Training ")
+	print ("Settings: %s" % (file_name))
 	print("---------------------------------------")
 
 	if not os.path.exists("./results"):
@@ -130,7 +115,8 @@ if __name__ == "__main__":
 		render_mode=args.render_mode,				# render pygame display option
 		var_speed=args.var_speed,					# train for variable speeds
 		accel_brake = args.accel_brake,				# train for acceleration and brake
-		penalize_oscl = int(args.penalize_oscl)	# penalize oscilations
+		penalize_oscl = int(args.penalize_oscl),	# penalize oscilations
+		max_episode_timesteps= max_episode_steps    # maximum timesteps for an episode
 		)
 	
 	#Counter to track finished episode within one iteration of parallel runs
@@ -149,22 +135,23 @@ if __name__ == "__main__":
 	policy = TD3(state_dim, action_dim, max_action, policy_noise=policy_noise, noise_clip=noise_clip)
 
 	# Load already trained policy
-	#Load policy or model based on input
-	if args.load_policy is not None:
-		filename = "Policy_" + str(args.load_policy)
-		directory = "./policies"
-		policy.load(filename, directory)
-	elif args.load_model is not None:
-		filename = "TD3_" + args.load_model
-		directory = "./pytorch_models"
-		policy.load(filename, directory)
-	start_timesteps = 0
+	if LOAD_POLICY["On"]:
+		#Load policy or model based on input
+		if args.load_policy:
+			filename = "Policy_" + str(args.policy_num)
+			directory = "./policies"
+			policy.load(filename, directory)
+		else:
+			filename = "TD3_" + args.model_num
+			directory = "./pytorch_models"
+			policy.load(filename, directory)
+		start_timesteps = 0
 	
 	# Init replay buffer
 	replay_buffer = utils.ReplayBuffer()
 	
 	# Evaluate untrained policy
-	evaluations = [evaluate_policy(policy)]#evaluations = [evaluate_policy(policy)] 
+	evaluations = []#evaluations = [evaluate_policy(policy)] 
 
 	# Init counters
 	total_timesteps = 0
@@ -178,7 +165,6 @@ if __name__ == "__main__":
 	# For each train iteration
 	episode_count = 0
 	avg_reward = 0
-	avg_CTE = 0
 
 	t0 = time.time()
 
@@ -191,24 +177,23 @@ if __name__ == "__main__":
 			if num_fin_episodes!=0: 
 				avg_reward /= num_fin_episodes
 				avg_reward_per_tile /= num_fin_episodes
-				avg_CTE /= episode_timesteps / env.ROAD_HALF_WIDTH
 
 			### Training after all_done as defined ###
 			###########################################
    
 			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
-				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %f  Avg Reward: %f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
-					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, avg_CTE, int(time.time() - t0)))
+				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f  Avg Reward/Tile: %.2f  --  Wallclk T: %d sec" % \
+					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, int(time.time() - t0)))
 				
 				# Store metrics
-				# with open(LOGS_FILEPATH, 'a', newline='') as file:
-				# 	log_writer = csv.writer(file)
-				# 	log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
+				with open(LOGS_FILEPATH, 'a', newline='') as file:
+					log_writer = csv.writer(file)
+					log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
 
 				# End learning condtion
-				if avg_reward_per_tile >= AVG_REWARD_TERMIN_THRESHOLD:
-					print("\n\nAvg Reward/Tile Threshold Met -- Training Terminated\n")
+				if avg_reward >= AVG_REWARD_TERMIN_THRESHOLD:
+					print("\n\nAvg Reward Threshold Met -- Training Terminated\n")
 					break
 					
 				# Lower Tau
@@ -248,8 +233,7 @@ if __name__ == "__main__":
 
 				# Saving evaluated policy as TD3_0
 				if save_models: policy.save(file_name + str(eval_count), directory="./pytorch_models")
-				np.save("./results/%s" % (file_name), evaluations)
-				print("Evaluated model saved as: " + file_name + str(eval_count)) 
+				np.save("./results/%s" % (file_name), evaluations) 
 
 				eval_count+=1
 			
@@ -273,7 +257,6 @@ if __name__ == "__main__":
 			max_reward = None
 			avg_reward = 0
 			avg_reward_per_tile = 0
-			avg_CTE = 0
 			num_fin_episodes = 0
 
 		
@@ -296,9 +279,6 @@ if __name__ == "__main__":
 		new_obs, reward, done, truncated, info = envs.step(action)
 
 		episode_reward += reward
-
-		#updating avg CTE 
-		avg_CTE+= sum([cte[1] for cte in new_obs])
         
 		# Episode ends in a environment(s)
 		if '_final_observation' in info.keys():
@@ -328,7 +308,7 @@ if __name__ == "__main__":
 
 			# cumulative sum for eventual avg calculation at the end of data collection
 			avg_reward += sum(episode_reward[finished])
-			tmp_reward = episode_reward.copy()
+			
 			#set episode reward for respective environments in the episode_reward vector to 0
 			episode_reward[finished] = 0
 
@@ -341,9 +321,6 @@ if __name__ == "__main__":
 		for i in range(num_envs):
 			if '_final_observation' in info.keys() and info['_final_observation'][i] == True:
 				replay_buffer.add(obs[i], info['final_observation'][i], action[i], reward[i], 1)
-				with open(LOGS_FILEPATH, 'a', newline='') as file:
-					log_writer = csv.writer(file)
-					log_writer.writerow([tmp_reward[i], episode_timesteps//num_envs])
 			else:
 				replay_buffer.add(obs[i], new_obs[i], action[i], reward[i], 0)
 
@@ -358,8 +335,6 @@ if __name__ == "__main__":
 	# Final evaluation after termination of learning
 	evaluations.append(evaluate_policy(policy))
 	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
-	np.save("./results/%s" % (file_name + "Final"), evaluations) 
-	print("Final model saved as: " + file_name + "Final") 
+	np.save("./results/%s" % (file_name), evaluations) 
+
 	envs.close()
-
-
