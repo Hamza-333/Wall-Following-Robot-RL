@@ -1,2 +1,11 @@
 # Ignore __pycache__ directories
 __pycache__/
+!policies/constSpeed/Policy_10_actor.pth
+!policies/constSpeed/Policy_10_critic.pth
+!policies/constSpeed/Policy_14_actor.pth
+!policies/constSpeed/Policy_14_critic.pth
+
+!policies/varPolicies/Policy_17_actor.pth
+!policies/varPolicies/Policy_17_critic.pth
+!policies/varPolicies/Policy_22_actor.pth
+!policies/varPolicies/Policy_22_critic.pth
