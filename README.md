@@ -1,4 +1,4 @@
-# Wall-Following-Robot-RL
+# Reinforcement Learning for Robot Path-Following by Staying in the Center of a Car Racing Track
 
 ## Dependencies
 Along with python version >= 3, to ensure the code runs similar to ours, the requirements in requirements.txt must be installed.
