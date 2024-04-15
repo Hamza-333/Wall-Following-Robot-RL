@@ -89,9 +89,9 @@ if __name__ == "__main__":
 	if args.timestp_thr is not None:
 		TERMIN_THRESHOLD["timesteps"] = int(args.timestp_thr)
 	elif args.var_speed:
-		TERMIN_THRESHOLD["timesteps"] = 70
+		TERMIN_THRESHOLD["reward"] = 70
 	elif args.accel_brake:
-		TERMIN_THRESHOLD["timesteps"] = 100
+		TERMIN_THRESHOLD["reward"] = 100
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
 	eval_freq = 1e4			            # How often (time steps) we evaluate
@@ -226,11 +226,6 @@ if __name__ == "__main__":
 				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %.2f  Avg Reward: %.2f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
 					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, avg_CTE, int(time.time() - t0)))
 				
-				# Store metrics
-				# with open(LOGS_FILEPATH, 'a', newline='') as file:
-				# 	log_writer = csv.writer(file)
-				# 	log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
-
 				# End learning condtion
 				if avg_reward_per_tile >= TERMIN_THRESHOLD['reward'] and total_timesteps>=TERMIN_THRESHOLD["timesteps"]:
 					print("\n\nAvg Reward/Tile Threshold Met -- Training Terminated\n")

@@ -84,7 +84,7 @@ print("Average reward per action: ", np.sum(rewards)/len(rewards))
 
 print("Average tile reward: ", total_reward_per_tile / num_sim)
 
-print("Average CTE: ", np.sum(np.abs(cte_list))/len(cte_list))
+print("Average CTE: ", np.sum(np.abs(cte_list))/len(cte_list)) * env.road_half_width
 
 
 
