@@ -88,11 +88,10 @@ example model: 'TD3_010'
 ```terminal
 python vectorizedMain.py --load_model=010
 ```
-example policy: 'policy_12'
+example policy: 'policy_14'
 ```terminal
-python vectorizedMain.py --load_policy=12
+python vectorizedMain.py --load_policy=14
 ```
-
 
 ## Testing
 
@@ -102,11 +101,11 @@ example model: 'TD3_010'
 ```terminal
 python test.py --load_model=010
 ```
-example policy: 'policy_12'
+example policy: 'policy_14'
 ```terminal
-python test.py --load_policy=12
+python test.py --load_policy=14
 ```
-
+If no policy is specified, then by default policy 10 will be selected. Currently, the available policies in the repository are policy 10 and policy 14 which gave the best results.
 #
 
 Consider you have just trained the model and simply want to test the final trained model:

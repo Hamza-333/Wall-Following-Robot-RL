@@ -34,7 +34,7 @@ if args.load_policy:
     filename = "Policy_" + str(args.load_policy)
     directory = "./policies"
     policy.load(filename, directory)
-else:
+elif args.load_model:
     filename = "TD3_" + args.load_model
     directory = "./pytorch_models"
     policy.load(filename, directory)
@@ -56,7 +56,6 @@ for i in range(num_sim):
     while not done:
         # Select action
         action = policy.select_action(np.array(state))
-        action = action
 
         # Perform action
         state, reward, terminated, truncated, info = env.step(action) 

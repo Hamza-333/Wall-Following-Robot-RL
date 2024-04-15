@@ -235,6 +235,7 @@ class CarRacing(gym.Env, EzPickle):
         var_speed = False,
         accel_brake = False,
         penalize_oscl = True,
+        max_episode_timesteps = 2000,
     ):
         EzPickle.__init__(
             self,
@@ -251,7 +252,7 @@ class CarRacing(gym.Env, EzPickle):
 
 
         self.center_line = []
-        self._max_episode_steps = 2500
+        self.max_episode_steps = max_episode_timesteps
         self.episode_steps = 0
         self.constant_speed = constant_speed
         self.prev_errors = [0 for _ in range(num_prev_errors)]
@@ -637,11 +638,20 @@ class CarRacing(gym.Env, EzPickle):
 
         self.update_prev_errors(self.state[1])
 
-        if action is not None and self.ACCELERATION_BRAKE:
-            self.reward += action[1]
 
-            if self.state[2] < 0.2:
-                self.reward-=11
+        if action is not None and self.ACCELERATION_BRAKE:
+            self.reward -= action[2]*20
+
+            self.reward += action[1]
+            
+            speed_error = abs(self.state[2]-0.5)
+            self.reward += (1-speed_error)*10
+            
+            if self.state[2] < 0.1:
+                self.reward-=25
+            
+            if self.state[2] < 0.05:
+                self.reward-=1000
 
 
         step_reward = 0
@@ -673,7 +683,7 @@ class CarRacing(gym.Env, EzPickle):
                 
             # End episode when car goes off road
             self.episode_steps+=1
-            if self.episode_steps > 2000 or self.new_lap:
+            if self.episode_steps > self.max_episode_steps or self.new_lap:
                 terminated = True
 
         if self.render_mode == "human":
@@ -1002,7 +1012,6 @@ def registerEnv(ID):
     gym.envs.register(
         id=ID,
         entry_point='env:CarRacing',  # Specify the module and class name
-        max_episode_steps=2000,  # Optionally, specify maximum episode steps
         kwargs={}                # Optionally, pass arguments to the environment constructor
         #reward_threshold=0.0,    # Optionally, specify a reward threshold
     )
