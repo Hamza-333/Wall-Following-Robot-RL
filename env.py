@@ -14,6 +14,8 @@ from gymnasium.utils import EzPickle
 
 from utils import SEED
 
+np.random.seed(SEED)
+
 try:
     import Box2D
     from Box2D.b2 import contactListener, fixtureDef, polygonShape

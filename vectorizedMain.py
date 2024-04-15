@@ -89,7 +89,7 @@ if __name__ == "__main__":
 	if args.timestp_thr is not None:
 		TERMIN_THRESHOLD["timesteps"] = int(args.timestp_thr)
 	elif args.var_speed:
-		TERMIN_THRESHOLD["reward"] = 70
+		TERMIN_THRESHOLD["reward"] = 80
 	elif args.accel_brake:
 		TERMIN_THRESHOLD["reward"] = 100
                 
@@ -114,10 +114,11 @@ if __name__ == "__main__":
 	if save_models and not os.path.exists("./pytorch_models"):
 		os.makedirs("./pytorch_models")
 
-	# Specify the file name for respective tasks
+	# Specify the filenames/driectories for respective tasks (const speed, var speed, accl)
 	if args.accel_brake:
 		LOGS_FILEPATH = './benchmarks/logs/TD3_log_ACCL.csv'
 		file_name = "TD3_ACCL_"
+		policies_dir = "./policies/acclPolicies"
 
 		if not os.path.exists("./policies/acclPolicies"):
 			os.makedirs("./policies/acclPolicies")
@@ -125,6 +126,7 @@ if __name__ == "__main__":
 	elif args.var_speed:
 		LOGS_FILEPATH = './benchmarks/logs/TD3_log_VAR.csv'
 		file_name = "TD3_VAR_"
+		policies_dir = "./policies/varPolicies"
 
 		if not os.path.exists("./policies/varPolicies"):
 			os.makedirs("./policies/varPolicies")
@@ -132,6 +134,7 @@ if __name__ == "__main__":
 	else:
 		LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
 		file_name = "TD3_"
+		policies_dir = "./policies"
 		
 	if not os.path.exists('./benchmarks/logs/'):
 			os.makedirs('./benchmarks/logs/')
@@ -141,6 +144,8 @@ if __name__ == "__main__":
 
 		# Write headings
 		log_writer.writerow(['r', 'l'])
+	
+
 
 	
 	# Register environment
@@ -218,13 +223,14 @@ if __name__ == "__main__":
 				avg_reward /= num_fin_episodes
 				avg_reward_per_tile /= num_fin_episodes
 				avg_CTE /= episode_timesteps / env.ROAD_HALF_WIDTH
+				avg_r_ts = avg_reward / episode_timesteps
 
 			### Training after all_done as defined ###
 			###########################################
 			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
 				
-				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %.2f  Avg Reward: %.2f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
-					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, avg_CTE, int(time.time() - t0)))
+				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %.2f  Avg Reward: %.2f  Avg Reward/Tile: %.2f  Avg CTE: %.2f AVG R/TS: %.2f  \n--  Wallclk T: %d sec" % \
+					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, avg_CTE, avg_r_ts, int(time.time() - t0)))
 				
 				# End learning condtion
 				if avg_reward_per_tile >= TERMIN_THRESHOLD['reward'] and total_timesteps>=TERMIN_THRESHOLD["timesteps"]:
@@ -244,13 +250,7 @@ if __name__ == "__main__":
 					LOWER_EXPL_NOISE["On"] = False
 
 				# save each policy with above stats before training
-				Directory = "./policies"
-				if args.accel_brake:
-					Directory = "./policies/acclPolicies"
-				elif args.var_speed:
-					Directory = "./policies/varPolicies"
-
-				policy.save("Policy_%d" % (train_iteration), directory="./policies")
+				policy.save("Policy_%d" % (train_iteration), directory=policies_dir)
 
 				print("\nTraining: ", end=" ")
 

@@ -56,7 +56,7 @@ for i in range(num_sim):
     while not done:
         # Select action
         action = policy.select_action(np.array(state))
-        action = [action[0], 0, 0]
+        action = action
 
         # Perform action
         state, reward, terminated, truncated, info = env.step(action) 
