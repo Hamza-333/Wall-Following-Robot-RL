@@ -1,7 +1,7 @@
 # Reinforcement Learning for Robot Path-Following 
 
 ## Dependencies
-Along with python version >= 3, to ensure the code runs similar to ours, the requirements in requirements.txt must be installed.
+Along with python version `>= 3`, to ensure the code runs similar to ours, the requirements in requirements.txt must be installed.
 
 To install the requirements run:
 
@@ -32,7 +32,7 @@ To train the model as done in the report, the vectorizedMain.py needs to be run 
 
 #### Rendering
 
-The code can be run with or without rendering the training process. Although not rendering may quicken the process, however, as our code is well optimized to not take long anyways, we recomend rendering to see the model learn. 
+The code can be run with or without rendering the environment simulation visually for the training process. Although not rendering may quicken the process, however, as our code is well optimized to not take long anyways, we recommend rendering to see the model learn. 
 
 By default, vectorizedMian.py is set up to render.
 
@@ -54,11 +54,11 @@ python vectorizedMain.py --var_speed=1
 ```
 ##
 
-#### Training for accleration and brake along with steering
+#### Training for acceleration (gas and brake) along with steering
 
-By default, the vectorizedMain.py file is set up to run without accleration and brake actions and only steering.
+By default, the vectorizedMain.py file is set up to run without acceleration (gas and brake) actions and only with the steering action.
 
-If you want to train for accleration and brake as well, run the file with the following argument
+If you want to train for acceleration (gas and brake actions) as well, run the file with the following argument
 
 ```terminal
 python vectorizedMain.py --accel_brake=1
@@ -66,7 +66,7 @@ python vectorizedMain.py --accel_brake=1
 
 ##
 
-#### Train the model without penalizing for oscilations
+#### Train the model without penalizing for oscillations
 
 If you want to try running the model simplifying the reward function to just be the shifted negative squared CTE, run vectorized with the following command:
 
