@@ -70,6 +70,8 @@ if __name__ == "__main__":
     parser.add_argument("--accel_brake", default=False)
     parser.add_argument("--render_mode", default=None)
     args = parser.parse_args()
+    if  args.accel_brake:
+        max_episode_steps = 1000
 
                 
     start_timesteps = 1e3           	# How many time steps purely random policy is run for
@@ -94,7 +96,10 @@ if __name__ == "__main__":
     if save_models and not os.path.exists("./pytorch_models"):
         os.makedirs("./pytorch_models")
 
-    env = CarRacing(render_mode=args.render_mode, var_speed=args.var_speed, accel_brake = args.accel_brake)
+    env = CarRacing(render_mode=args.render_mode, var_speed=args.var_speed,
+                    accel_brake = args.accel_brake,
+                    max_episode_timesteps= max_episode_steps    # maximum timesteps for an episode
+                    )
 
     #Counter to track finished episode within one iteration of parallel runs
     num_fin_episodes = 0

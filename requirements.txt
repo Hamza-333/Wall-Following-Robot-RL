@@ -1,7 +1,7 @@
 numpy<1.24
-torch
-matplotlib
-swig
-gymnasium
-gymnasium[box2d]
-stable-baselines3
+torch>=2.2
+matplotlib>=3.8
+swig>=4.2.1
+gymnasium>=0.29.1
+gymnasium[box2d]>=2.3.5
+stable-baselines3>=2.3.0
