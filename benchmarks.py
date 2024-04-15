@@ -39,7 +39,7 @@ ddpg_log_dir = "./benchmarks/logs/ddpg_logs/"
 
 
 ######## Training ########
-train = 1
+train = 0
 if train:
 
     # set up loggers
@@ -95,6 +95,7 @@ if train:
 
 
 ######## Evaluation ########
+"""
 env = CarRacing(render_mode = 'human')
 
 PPO_model = PPO.load("./benchmarks/ppo_policy")
@@ -115,14 +116,38 @@ env.close()
 print("\nPPO Average Reward:", PPO_avg_reward)
 print("\nSAC Average Reward:", SAC_avg_reward)
 print("\nDDPG Average Reward:", DDPG_avg_reward)
+"""
 
 # Load monitoring data for each algorithm
 ppo_monitor_df = pd.read_csv(os.path.join(ppo_log_dir, 'monitor.csv'),skiprows=[0],  index_col=None)
 sac_monitor_df = pd.read_csv(os.path.join(sac_log_dir, 'monitor.csv'), skiprows=[0], index_col=None)
 ddpg_monitor_df = pd.read_csv(os.path.join(ddpg_log_dir, 'monitor.csv'), skiprows=[0], index_col=None)
+
 td3_df = pd.read_csv('./benchmarks/logs/TD3_log.csv', index_col=None)
 
+# create column for timesteps 
+ppo_monitor_df['timesteps'] = ppo_monitor_df['l'].cumsum()
+sac_monitor_df['timesteps'] = sac_monitor_df['l'].cumsum()
+ddpg_monitor_df['timesteps'] = ddpg_monitor_df['l'].cumsum()
+td3_df['timesteps'] = td3_df['l'].cumsum()
+
+
 # Plot learning curves
+
+# Rewards vs timesteps
+plt.figure(figsize=(10, 5))
+plt.plot(ppo_monitor_df['timesteps'], ppo_monitor_df['r'], label='PPO')
+plt.plot(sac_monitor_df['timesteps'], sac_monitor_df['r'], label='SAC')
+plt.plot(ddpg_monitor_df['timesteps'], ddpg_monitor_df['r'], label='DDPG')
+plt.plot(td3_df['timesteps'], td3_df['r'], label='TD3')
+plt.xlabel('Timesteps')
+plt.ylabel('r')
+plt.title('Reward vs Timesteps')
+plt.xticks(rotation=90)
+plt.legend()
+plt.grid(True)
+plt.show()
+
 
 # Rewards vs Episodes
 plt.figure(figsize=(10, 5))

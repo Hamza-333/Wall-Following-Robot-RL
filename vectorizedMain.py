@@ -18,27 +18,21 @@ max_episode_steps = 2000
 NUM_PARALLEL_ENVS = 3
 
 #Options to change expl noise and tau
-LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.01}
-LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 20000, 'Value': 0.001}
+
+LOWER_EXPL_NOISE = {"On" : True, "Reward_Threshold":14000, 'Value': 0.005}
+LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 10000, 'Value': 0.001}
+
 
 #load already trained policy
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 195000000
+
+TERMIN_THRESHOLD = {"reward": 63, "timesteps": 45000}
+
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
-# Specify the file name
-LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
-if not os.path.exists('./benchmarks/logs/'):
-		os.makedirs('./benchmarks/logs/')
-  
-with open(LOGS_FILEPATH, 'w', newline='') as file:
-	log_writer = csv.writer(file)
-
-	# Write headings
-	log_writer.writerow(['r', 'l'])
 
 # Runs policy for X episodes and returns average reward
 def evaluate_policy(policy, eval_episodes=5):
@@ -72,17 +66,25 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Settings for env')
 
 	parser.add_argument("--penalize_oscl", default=True)
+	parser.add_argument("--timestp_thr", default=None)
 	parser.add_argument("--var_speed", default=False)		
 	parser.add_argument("--accel_brake", default=False)
 	parser.add_argument("--render_mode", default="human")
 	parser.add_argument("--load_policy", default=None)
 	parser.add_argument("--load_model", default=None)
 	args = parser.parse_args()
-	if  args.accel_brake:
-		max_episode_steps = 1000
+
+
+	if args.timestp_thr is not None:
+		TERMIN_THRESHOLD["timesteps"] = int(args.timestp_thr)
+	elif args.var_speed:
+		TERMIN_THRESHOLD["reward"] = 70
+	elif args.accel_brake:
+		TERMIN_THRESHOLD["reward"] = 100
+
                 
 	start_timesteps = 1e3           	# How many time steps purely random policy is run for
-	eval_freq = 1e4			             # How often (time steps) we evaluate
+	eval_freq = 1e4			            # How often (time steps) we evaluate
 	max_timesteps = MAX_TIME_STEPS 		# Max time steps to run environment for
 	save_models = True			    	# Whether or not models are saved
 
@@ -93,9 +95,9 @@ if __name__ == "__main__":
 	noise_clip=0.25	                  	# Range to clip target policy noise
 
 
-	file_name = "TD3_%s" % (str(SEED))
+
 	print("---------------------------------------")
-	print ("Settings: %s" % (file_name))
+	print ("                 TD3 ")
 	print("---------------------------------------")
 
 	if not os.path.exists("./results"):
@@ -103,6 +105,35 @@ if __name__ == "__main__":
 	if save_models and not os.path.exists("./pytorch_models"):
 		os.makedirs("./pytorch_models")
 
+	# Specify the file name for respective tasks
+	if args.accel_brake:
+		LOGS_FILEPATH = './benchmarks/logs/TD3_log_ACCL.csv'
+		file_name = "TD3_ACCL_"
+
+		if not os.path.exists("./policies/acclPolicies"):
+			os.makedirs("./policies/acclPolicies")
+
+	elif args.var_speed:
+		LOGS_FILEPATH = './benchmarks/logs/TD3_log_VAR.csv'
+		file_name = "TD3_VAR_"
+
+		if not os.path.exists("./policies/varPolicies"):
+			os.makedirs("./policies/varPolicies")
+
+	else:
+		LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
+		file_name = "TD3_"
+		
+	if not os.path.exists('./benchmarks/logs/'):
+			os.makedirs('./benchmarks/logs/')
+	
+	with open(LOGS_FILEPATH, 'w', newline='') as file:
+		log_writer = csv.writer(file)
+
+		# Write headings
+		log_writer.writerow(['r', 'l'])
+
+	
 	# Register environment
 	env_id  = 'center_maintaining'
 	env.registerEnv(env_id)
@@ -115,6 +146,7 @@ if __name__ == "__main__":
 		render_mode=args.render_mode,				# render pygame display option
 		var_speed=args.var_speed,					# train for variable speeds
 		accel_brake = args.accel_brake,				# train for acceleration and brake
+    mahan_real_acceleration
 		penalize_oscl = int(args.penalize_oscl),	# penalize oscilations
 		max_episode_timesteps= max_episode_steps    # maximum timesteps for an episode
 		)
@@ -135,16 +167,17 @@ if __name__ == "__main__":
 	policy = TD3(state_dim, action_dim, max_action, policy_noise=policy_noise, noise_clip=noise_clip)
 
 	# Load already trained policy
-	if LOAD_POLICY["On"]:
-		#Load policy or model based on input
-		if args.load_policy:
-			filename = "Policy_" + str(args.policy_num)
-			directory = "./policies"
-			policy.load(filename, directory)
-		else:
-			filename = "TD3_" + args.model_num
-			directory = "./pytorch_models"
-			policy.load(filename, directory)
+
+	#Load policy or model based on input
+	if args.load_policy is not None:
+		filename = "Policy_" + str(args.load_policy)
+		directory = "./policies"
+		policy.load(filename, directory)
+		start_timesteps = 0
+	elif args.load_model is not None:
+		filename = "TD3_" + args.load_model
+		directory = "./pytorch_models"
+		policy.load(filename, directory)
 		start_timesteps = 0
 	
 	# Init replay buffer
@@ -180,20 +213,15 @@ if __name__ == "__main__":
 
 			### Training after all_done as defined ###
 			###########################################
-   
-			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):
-				
-				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d   Best Reward: %f   Avg Reward: %f  Avg Reward/Tile: %.2f  --  Wallclk T: %d sec" % \
-					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, int(time.time() - t0)))
-				
-				# Store metrics
-				with open(LOGS_FILEPATH, 'a', newline='') as file:
-					log_writer = csv.writer(file)
-					log_writer.writerow([avg_reward, episode_timesteps/num_fin_episodes])
+			if total_timesteps != 0 and (not LOAD_POLICY['On'] or total_timesteps>=LOAD_POLICY["init_time_steps"]):			
 
+				print("\nData Stats:\nTotal T: %d   Train itr: %d   Episodes T: %d Best Reward: %.2f  Avg Reward: %.2f  Avg Reward/Tile: %.2f  Avg CTE: %.2f  \n--  Wallclk T: %d sec" % \
+					(total_timesteps, train_iteration, episode_timesteps, max_reward, avg_reward, avg_reward_per_tile, avg_CTE, int(time.time() - t0)))
+				
 				# End learning condtion
-				if avg_reward >= AVG_REWARD_TERMIN_THRESHOLD:
-					print("\n\nAvg Reward Threshold Met -- Training Terminated\n")
+				if avg_reward_per_tile >= TERMIN_THRESHOLD['reward'] and total_timesteps>=TERMIN_THRESHOLD["timesteps"]:
+					print("\n\nAvg Reward/Tile Threshold Met -- Training Terminated\n")
+
 					break
 					
 				# Lower Tau
@@ -209,6 +237,12 @@ if __name__ == "__main__":
 					LOWER_EXPL_NOISE["On"] = False
 
 				# save each policy with above stats before training
+				Directory = "./policies"
+				if args.accel_brake:
+					Directory = "./policies/acclPolicies"
+				elif args.var_speed:
+					Directory = "./policies/varPolicies"
+
 				policy.save("Policy_%d" % (train_iteration), directory="./policies")
 
 				print("\nTraining: ", end=" ")
@@ -240,7 +274,6 @@ if __name__ == "__main__":
 
 			### Reseting environment and var for new data collection iteration ###
    			######################################################################
-   
 			print("\nCollecting data:")
 			
 			# Reseting environment
@@ -259,7 +292,6 @@ if __name__ == "__main__":
 			avg_reward_per_tile = 0
 			num_fin_episodes = 0
 
-		
 		# Select action randomly or according to policy
 		if total_timesteps == start_timesteps:
 			print("\n\n\nPolicy actions started\n\n\n")
@@ -279,6 +311,10 @@ if __name__ == "__main__":
 		new_obs, reward, done, truncated, info = envs.step(action)
 
 		episode_reward += reward
+
+		#updating avg CTE 
+		avg_CTE+= sum([abs(cte[1]) for cte in new_obs])
+
         
 		# Episode ends in a environment(s)
 		if '_final_observation' in info.keys():
@@ -334,7 +370,10 @@ if __name__ == "__main__":
 
 	# Final evaluation after termination of learning
 	evaluations.append(evaluate_policy(policy))
-	if save_models: policy.save("%s" % (file_name), directory="./pytorch_models")
-	np.save("./results/%s" % (file_name), evaluations) 
+  
+	if save_models: policy.save("%s" % (file_name + "Final"), directory="./pytorch_models")
+	np.save("./results/%s" % (file_name + "Final"), evaluations) 
+	print("Final model saved as: " + file_name + "Final") 
+	envs.close()
 
 	envs.close()
