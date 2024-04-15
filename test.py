@@ -7,7 +7,7 @@ import utils
 
 #process file input
 parser = argparse.ArgumentParser(description='Settings for env')
-parser.add_argument("--load_policy", default="10")
+parser.add_argument("--load_policy", default=None)
 parser.add_argument("--load_model", default=None)
 parser.add_argument("--var_speed", default=False)		
 parser.add_argument("--accel_brake", default=False)	
@@ -64,7 +64,7 @@ cte_list = []
 
 num_sim = 10
 rewards = []
-for i in range(1):
+for i in range(num_sim):
     
     #Simulation loop
     done = False

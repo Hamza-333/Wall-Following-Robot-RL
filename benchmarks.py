@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+import argparse
 
 PPO_TRAIN_TIME_STEPS = 10000
 DDPG_TRAIN_TIME_STEPS = 10000
@@ -39,9 +40,14 @@ ddpg_log_dir = "./benchmarks/logs/ddpg_logs/"
 
 
 ######## Training ########
-train = 0
-if train:
 
+parser = argparse.ArgumentParser(description='Settings for env')
+parser.add_argument("--train", default=False)
+args = parser.parse_args()
+
+
+train = args.train
+if train:
     # set up loggers
     ppo_logger = configure(ppo_log_dir, ["stdout", "csv"])
     sac_logger = configure(sac_log_dir, ["stdout", "csv"])
@@ -95,28 +101,6 @@ if train:
 
 
 ######## Evaluation ########
-"""
-env = CarRacing(render_mode = 'human')
-
-PPO_model = PPO.load("./benchmarks/ppo_policy")
-SAC_model = SAC.load("./benchmarks/sac_policy")
-DDPG_model = DDPG.load("./benchmarks/ddpg_policy")
-
-print("Evaluating PPO")
-PPO_avg_reward = evaluate_policy(PPO_model, env)
-
-print("Evaluating SAC")
-SAC_avg_reward = evaluate_policy(SAC_model, env)
-
-print("Evaluating DDPG")
-DDPG_avg_reward = evaluate_policy(DDPG_model, env)
-
-env.close()
-
-print("\nPPO Average Reward:", PPO_avg_reward)
-print("\nSAC Average Reward:", SAC_avg_reward)
-print("\nDDPG Average Reward:", DDPG_avg_reward)
-"""
 
 # Load monitoring data for each algorithm
 ppo_monitor_df = pd.read_csv(os.path.join(ppo_log_dir, 'monitor.csv'),skiprows=[0],  index_col=None)
