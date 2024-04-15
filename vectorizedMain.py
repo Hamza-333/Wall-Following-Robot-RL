@@ -102,30 +102,30 @@ if __name__ == "__main__":
 
 	if not os.path.exists("./results"):
 		os.makedirs("./results")
-	if save_models and not os.path.exists("./pytorch_models"):
-		os.makedirs("./pytorch_models")
+	if save_models and not os.path.exists(utils.model_dir):
+		os.makedirs(utils.model_dir)
 
 	# Specify the filenames/driectories for respective tasks (const speed, var speed, accl)
 	if args.accel_brake:
-		LOGS_FILEPATH = './benchmarks/logs/TD3_log_ACCL.csv'
-		file_name = "TD3_ACCL_"
-		policies_dir = "./policies/acclPolicies"
+		LOGS_FILEPATH = utils.logs_filepath_accl
+		file_name = utils.file_name_accl
+		policies_dir = utils.policies_dir_accl
 
-		if not os.path.exists("./policies/acclPolicies"):
-			os.makedirs("./policies/acclPolicies")
+		if not os.path.exists(utils.policies_dir_accl):
+			os.makedirs(utils.policies_dir_accl)
 
 	elif args.var_speed:
-		LOGS_FILEPATH = './benchmarks/logs/TD3_log_VAR.csv'
-		file_name = "TD3_VAR_"
-		policies_dir = "./policies/varPolicies"
+		LOGS_FILEPATH = utils.logs_filepath_var_speed
+		file_name = utils.file_name_var
+		policies_dir = utils.policies_dir_var_speed
 
-		if not os.path.exists("./policies/varPolicies"):
-			os.makedirs("./policies/varPolicies")
+		if not os.path.exists(utils.policies_dir_var_speed):
+			os.makedirs(utils.policies_dir_var_speed)
 
 	else:
-		LOGS_FILEPATH = './benchmarks/logs/TD3_log.csv'
-		file_name = "TD3_"
-		policies_dir = "./policies"
+		LOGS_FILEPATH = utils.logs_filepath
+		file_name = utils.file_name
+		policies_dir = utils.policies_dir
 		
 	if not os.path.exists('./benchmarks/logs/'):
 			os.makedirs('./benchmarks/logs/')
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 				evaluations.append(eval_score)
 
 				# Saving evaluated policy as TD3_0
-				if save_models: policy.save(file_name + str(eval_count), directory="./pytorch_models")
+				if save_models: policy.save(file_name + str(eval_count), directory=utils.model_dir)
 				np.save("./results/%s" % (file_name), evaluations) 
 
 				eval_count+=1
@@ -372,7 +372,7 @@ if __name__ == "__main__":
 	# Final evaluation after termination of learning
 	evaluations.append(evaluate_policy(policy))
   
-	if save_models: policy.save("%s" % (file_name + "Final"), directory="./pytorch_models")
+	if save_models: policy.save("%s" % (file_name + "Final"), directory=utils.model_dir)
 	np.save("./results/%s" % (file_name + "Final"), evaluations) 
 	print("Final model saved as: " + file_name + "Final") 
 	envs.close()

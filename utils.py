@@ -5,6 +5,23 @@ import logging
 
 SEED = 0
 
+#Files and directories for different settings
+file_name = "TD3_"
+file_name_var = "TD3_VAR_"
+file_name_accl = "TD3_ACCL_"
+
+policies_dir = "./policies/acclPolicies"
+policies_dir_var_speed = "./policies/varPolicies"
+policies_dir_accl = "./policies/acclPolicies"
+
+logs_filepath = './benchmarks/logs/TD3_log.csv'
+logs_filepath_var_speed = './benchmarks/logs/TD3_log_VAR.csv'
+logs_filepath_accl = './benchmarks/logs/TD3_log_ACCL.csv'
+
+model_dir = "./pytorch_models"
+
+
+
 np.random.seed(SEED)
 
 class ReplayBuffer(object):

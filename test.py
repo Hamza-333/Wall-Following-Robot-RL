@@ -3,6 +3,7 @@ import numpy as np
 import TD3
 from env import CarRacing
 import argparse
+import utils
 
 #process file input
 parser = argparse.ArgumentParser(description='Settings for env')
@@ -29,14 +30,28 @@ print(state_dim, action_dim)
 # Initialize policy
 policy = TD3.TD3(state_dim, action_dim, max_action)
 
-#Load policy or model based on input
+#assign filenames paths based on setting
+if args.var_speed:
+    model_filename = utils.file_name_var
+    policy_dir = utils.policies_dir_var_speed
+
+elif args.accel_brake:
+    model_filename = utils.file_name_accl
+    policy_dir = utils.policies_dir_accl
+
+else:
+    model_filename = utils.file_name
+    policy_dir = utils.policies_dir
+
+#Load policy or model based setting
 if args.load_policy:
     filename = "Policy_" + str(args.load_policy)
-    directory = "./policies"
+    directory = policy_dir
     policy.load(filename, directory)
+
 elif args.load_model:
-    filename = "TD3_" + args.load_model
-    directory = "./pytorch_models"
+    filename = model_filename + str(args.load_model)
+    directory = utils.model_dir
     policy.load(filename, directory)
 
 # Reset Env
@@ -49,7 +64,7 @@ cte_list = []
 
 num_sim = 10
 rewards = []
-for i in range(num_sim):
+for i in range(1):
     
     #Simulation loop
     done = False
@@ -75,15 +90,15 @@ for i in range(num_sim):
 
             done = True
         
-print("Variance of CTE: ", np.var(cte_list)) * env.road_half_width
+print("Variance of CTE: ", np.var(cte_list) * env.road_half_width)
 
 print("Average reward: ", total_reward / num_sim)
 
-print("Average reward per action: ", np.sum(rewards)/len(rewards))
+print("Average reward per timestep: ", np.sum(rewards)/len(rewards))
 
 print("Average tile reward: ", total_reward_per_tile / num_sim)
 
-print("Average CTE: ", np.sum(np.abs(cte_list))/len(cte_list)) * env.road_half_width
+print("Average CTE: ", np.sum(np.abs(cte_list))/len(cte_list) * env.road_half_width)
 
 
 
