@@ -80,9 +80,12 @@ python vectorizedMain.py --penalize_oscl=0
 
 #### Loading a pre-trained model or policy
 
-First note that in this context, policies are the trained models that correspond to the data stats before each training iterations. These are stored in the './policies' directory.
+First note that in this context, policies are the trained models that correspond to the data stats before each training iteration. These are stored in the './policies' directory.
 
 Models are the evaluated models stored at each evaluation during training, and also after the final evaluation after training is terminated.
+
+
+In our current implementation, please note that this functionality is only supported for the main task: constant speed.
 
 To load a pre-trained model or policy run either of the following as required:
 
@@ -96,7 +99,6 @@ python vectorizedMain.py --load_policy=14
 ```
 
 ## Testing
-
 
 For our best models for the main task, run the following:
 
@@ -156,7 +158,17 @@ example usage for variable speed model: 'TD3_VAR_0'
 ```terminal
 python test.py --load_model=0 --var_speed=1
 ```
-example usage for acceleration policy: 'policy_14'
+example usage for acceleration policy: 'Policy_14'
+```terminal
+python test.py --load_policy=14 --accel_brake=1
+```
+
+Our best results are policies are as following:
+
+```terminal
+python test.py --load_policy= --accel_brake=1
+```
+
 ```terminal
 python test.py --load_policy=14 --accel_brake=1
 ```
