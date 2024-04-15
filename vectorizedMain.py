@@ -126,6 +126,9 @@ if __name__ == "__main__":
 		LOGS_FILEPATH = utils.logs_filepath
 		file_name = utils.file_name
 		policies_dir = utils.policies_dir
+
+		if not os.path.exists(utils.policies_dir):
+			os.makedirs(utils.policies_dir)
 		
 	if not os.path.exists('./benchmarks/logs/'):
 			os.makedirs('./benchmarks/logs/')
