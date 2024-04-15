@@ -47,7 +47,7 @@ python vectorizedMain.py --render_mode=0
 
 By default, the vectorizedMain.py file is set up to run with a fixed constant speed for each episode.
 
-If you wan to train for variable speed per episode, run the file with the following argument
+If you want to train for variable speed per episode, run the file with the following argument
 
 ```terminal
 python vectorizedMain.py --var_speed=1
@@ -56,9 +56,9 @@ python vectorizedMain.py --var_speed=1
 
 #### Training for accleration and brake along with steering
 
-By default, the vectorizedMain.py file is set up to run without  accleration and brake actions and only steering.
+By default, the vectorizedMain.py file is set up to run without accleration and brake actions and only steering.
 
-If you wan to train for accleration and brake as well, run the file with the following argument
+If you want to train for accleration and brake as well, run the file with the following argument
 
 ```terminal
 python vectorizedMain.py --accel_brake=1
@@ -117,7 +117,7 @@ python test.py --load_model=Final
 
 ## Evaluating with Benchmarks
 
-For this, simply run the following to get the all the matplot lib plots and evaluations printed in the console.
+For this, simply run the following to get the all the matplotlib plots and evaluations printed in the console.
 
 ```terminal
 python benchmarks.py
