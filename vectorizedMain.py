@@ -25,7 +25,7 @@ LOWER_TAU = {"On" : True, "Reward_Threshold":18000, 'Timesteps_Threshold' : 2000
 LOAD_POLICY = {"On": False, 'init_time_steps': 1e4}
 
 #Avg reward termination condition
-AVG_REWARD_TERMIN_THRESHOLD = 19500
+AVG_REWARD_TERMIN_THRESHOLD = 195000000
 # Time steps below which a standard training iteration param is passed
 MIN_EPS_TIMESTEPS = 500
 
