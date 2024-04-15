@@ -122,4 +122,4 @@ For this, simply run the following to get the all the matplotlib plots and evalu
 python benchmarks.py
 ```
 ## Acknowledgements
-University of Toronto's CSC2626 Assignment 1 repository: https://github.com/florianshkurti/csc2626w22/tree/master/assignments/A1
+- University of Toronto's CSC2626 Assignment 1 repository: https://github.com/florianshkurti/csc2626w22/tree/master/assignments/A1
