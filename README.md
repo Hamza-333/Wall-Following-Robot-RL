@@ -24,12 +24,23 @@ The instructions in the following video were helpful:
 
 https://youtu.be/gMgj4pSHLww?si=asoE1KxlGiYnBwop
 
+## Terminolgy
+
+First note that our implementation the following convention for naming policies was set:
+
+- Policies, stored as "Policy_", are the trained models that correspond to the data stats before each training iteration. These are stored in the './policies' directory.
+
+- Models, stored as "TD3_",  are the evaluated models stored at each evaluation during training and after the final evaluation after training is terminated. They are stored in the directory './pytorch_models'.
+
 
 ## Training
 
 To train the model as done in the report for our main task, constant speed path following, the vectorizedMain.py needs to be run without any arguments passed to it.
 
+Note: Training will overwrite the logs for our provided runs for TD3. It is recommended that you first visit the benchmarks section below and run benchmarks to see the plots given in the report.
+
 For training the model for the extended tasks, variable constant speed/acceleration, and other settings, the vectorizedMain.py needs to be run as defined below.
+
 
 
 #### Rendering
@@ -78,17 +89,15 @@ python vectorizedMain.py --penalize_oscl=0
 
 ##
 
-#### Loading a pre-trained model or policy
+#### Loading a pre-trained model or policy before training(functionality for curriculum learning)
 
-First note that in this context, policies are the trained models that correspond to the data stats before each training iterations. These are stored in the './policies' directory.
-
-Models are the evaluated models stored at each evaluation during training, and also after the final evaluation after training is terminated.
+In our current implementation, please note that this functionality is only supported for the main task: constant speed.
 
 To load a pre-trained model or policy run either of the following as required:
 
-example model: 'TD3_010'
+example model: 'TD3_Final'
 ```terminal
-python vectorizedMain.py --load_model=010
+python vectorizedMain.py --load_model=Final
 ```
 example policy: 'policy_14'
 ```terminal
@@ -96,6 +105,32 @@ python vectorizedMain.py --load_policy=14
 ```
 
 ## Testing
+
+### Our best results
+For our best models for the main task, run the following:
+
+Constant speed:
+```terminal
+python test.py --load_policy=best1
+```
+
+```terminal
+python test.py --load_policy=best2
+```
+
+Similarly, for extended tasks, passing these arguments is enough
+
+Variable speed:
+```terminal
+python test.py --load_policy=best1 --var_speed=1
+python test.py --load_policy=best2 --var_speed=1
+```
+Acceleration:
+```terminal
+python test.py --load_policy=best1 --accel_brake=1
+```
+
+### Testing your own trained polices
 
 Similar to loading a model or a policy as before, run the following as required for our main task:
 
@@ -107,23 +142,16 @@ example policy: 'policy_14'
 ```terminal
 python test.py --load_policy=14
 ```
-If no policy is specified, then by default policy 10 will be selected. Currently, the available policies in the repository are policy 10 and policy 14 which gave the best results.
 #
 
-Consider you have just trained the model and simply want to test the final trained model:
+If you want to test for the extended tasks, pass the following arguments along as required:
 
-```terminal
-python test.py --load_model=Final
-```
-
-If you want to test for the extended tasks, pass the pass following arguments along as required:
-
-For constant speed:
+For variable speed:
 ```terminal
 --var_speed=1
 ```
 
-For constant speed:
+For acceleration:
 ```terminal
 --accel_brake=1
 ```
@@ -132,18 +160,35 @@ example usage for variable speed model: 'TD3_VAR_0'
 ```terminal
 python test.py --load_model=0 --var_speed=1
 ```
-example usage for acceleration policy: 'policy_14'
+example usage for acceleration policy: 'Policy_14'
 ```terminal
 python test.py --load_policy=14 --accel_brake=1
 ```
 
+
+Consider you have just trained the model and simply want to test the final trained model:
+Note: for variable speed and acceleration training does not end at a specific instance so there may be no final policy if the training does not terminate.
+```terminal
+python test.py --load_model=Final
+```
+
+
+
 ## Evaluating with Benchmarks
 
-For this, simply run the following to get all the matplotlib plots and evaluations printed in the console. 
+For the plots in the report, simply run the following to get all the matplotlib plots and evaluations printed in the console. 
+As it takes a long time to train, the SAC, PPO and DDPG trained models and logs are given in the './benchmarks' folder for this file to generate plots from.
 
 ```terminal
 python benchmarks.py
 ```
+
+If you wish to train benchmark models again yourself(This will overwrite the already trained models), pass the following argument:
+
+```terminal
+python benchmarks.py --train=1
+```
+
 
 ## Acknowledgements
 - University of Toronto's CSC2626 Assignment 1 repository: https://github.com/florianshkurti/csc2626w22/tree/master/assignments/A1
