@@ -37,7 +37,10 @@ First note that our implementation the following convention for naming policies 
 
 To train the model as done in the report for our main task, constant speed path following, the vectorizedMain.py needs to be run without any arguments passed to it.
 
+Note: Training will overwrite the logs for our provided runs for TD3. It is recommended that you first visit the benchmarks section below and run benchmarks to see the plots given in the report.
+
 For training the model for the extended tasks, variable constant speed/acceleration, and other settings, the vectorizedMain.py needs to be run as defined below.
+
 
 
 #### Rendering
@@ -103,7 +106,7 @@ python vectorizedMain.py --load_policy=14
 
 ## Testing
 
-# Our best results
+### Our best results
 For our best models for the main task, run the following:
 
 Constant speed:
@@ -128,7 +131,8 @@ python test.py --load_policy=best1 --accel_brake=1
 python test.py --load_policy=best2 --accel_brake=1
 ```
 
-# Testing your own trained polices
+### Testing your own trained polices
+
 Similar to loading a model or a policy as before, run the following as required for our main task:
 
 example model: 'TD3_010'
@@ -140,12 +144,6 @@ example policy: 'policy_14'
 python test.py --load_policy=14
 ```
 #
-
-Consider you have just trained the model and simply want to test the final trained model:
-
-```terminal
-python test.py --load_model=Final
-```
 
 If you want to test for the extended tasks, pass the following arguments along as required:
 
@@ -168,25 +166,30 @@ example usage for acceleration policy: 'Policy_14'
 python test.py --load_policy=14 --accel_brake=1
 ```
 
-Our best results are policies are as following:
 
+Consider you have just trained the model and simply want to test the final trained model:
+Note: for variable speed and acceleration training does not end at a specific instance so there may be no final policy if the training does not terminate.
 ```terminal
-python test.py --load_policy= --accel_brake=1
-```
-
-```terminal
-python test.py --load_policy=14 --accel_brake=1
+python test.py --load_model=Final
 ```
 
 
 
 ## Evaluating with Benchmarks
 
-For this, simply run the following to get all the matplotlib plots and evaluations printed in the console. 
+For the plots in the report, simply run the following to get all the matplotlib plots and evaluations printed in the console. 
+As it takes a long time to train, the SAC, PPO and DDPG trained models and logs are given in the './benchmarks' folder for this file to generate plots from.
 
 ```terminal
 python benchmarks.py
 ```
+
+If you wish to train benchmark models again yourself(This will overwrite the already trained models), pass the following argument:
+
+```terminal
+python benchmarks.py --train=1
+```
+
 
 ## Acknowledgements
 - University of Toronto's CSC2626 Assignment 1 repository: https://github.com/florianshkurti/csc2626w22/tree/master/assignments/A1
