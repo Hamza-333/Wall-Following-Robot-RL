@@ -128,7 +128,6 @@ python test.py --load_policy=best2 --var_speed=1
 Acceleration:
 ```terminal
 python test.py --load_policy=best1 --accel_brake=1
-python test.py --load_policy=best2 --accel_brake=1
 ```
 
 ### Testing your own trained polices
